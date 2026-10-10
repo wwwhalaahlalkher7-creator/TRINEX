@@ -201,7 +201,6 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
       1 => 'المقرر: ${_subjectLabel(row['subject_id'])}  •  المصدر: ${row['source'] ?? 'يدوي'}',
       _ => '${_dayLabel(row['day_of_week'])}  •  ${row['start_time'] ?? '--:--'} – ${row['end_time'] ?? '--:--'}  •  القاعة: ${row['room'] ?? '—'}',
     };
-    final active = row['active'] == 1 || row['active'] == true || row['active'] == null;
     return Card(child: ListTile(
       leading: CircleAvatar(child: Icon(_tabs.index == 0 ? Icons.class_outlined : _tabs.index == 1 ? Icons.menu_book_outlined : Icons.event_note_outlined)),
       title: Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
