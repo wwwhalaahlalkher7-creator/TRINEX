@@ -1,16 +1,31 @@
 name: TRINEX Admin CI
 
 on:
-  pull_request:
   push:
     branches: [main, master]
+  pull_request:
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Platforms to build manually"
+        required: true
+        type: choice
+        default: all
+        options:
+          - android
+          - windows
+          - ios
+          - all
 
 permissions:
   contents: read
 
+concurrency:
+  group: trinex-admin-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  analyze-and-test:
+  verify:
     name: Analyze and test
     runs-on: ubuntu-latest
     steps:
@@ -19,133 +34,106 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Generate missing platform scaffolding
-        run: flutter create --platforms=android,ios,windows .
       - name: Resolve dependencies
         run: flutter pub get
-      - name: Format Dart sources
-        run: dart format lib test
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib
       - name: Static analysis
-        # Keep analyzer errors and warnings fatal; style/info lints are reported but do not fail CI.
         run: flutter analyze --no-fatal-infos
       - name: Unit and widget tests
         run: flutter test
 
-  build-android-apk:
-    name: Build Android APK (local install)
+  build-android:
+    name: Build Android APK
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms == 'android' || inputs.platforms == 'all'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
+      - name: Setup Java 17 with Gradle cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            **/*.gradle*
+            **/gradle-wrapper.properties
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - name: Generate Android scaffolding
         run: flutter create --platforms=android .
+      - name: Resolve dependencies
+        run: flutter pub get
       - name: Set Android compile SDK to 36
-        shell: bash
         run: |
           python3 - <<'PYCODE'
           from pathlib import Path
-          candidates = [Path('android/app/build.gradle.kts'), Path('android/app/build.gradle')]
           import re
+          candidates = [Path('android/app/build.gradle.kts'), Path('android/app/build.gradle')]
           found = False
           for path in candidates:
               if not path.exists():
                   continue
               content = path.read_text()
-              if re.search(r'compileSdk\s*=\s*36\b|compileSdkVersion\s+36\b', content):
-                  found = True
-                  continue
-              updated, count = re.subn(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', content, count=1)
-              if count == 0:
-                  updated, count = re.subn(r'compileSdkVersion\s+[^\n]+', 'compileSdkVersion 36', content, count=1)
+              updated, count = re.subn(r'(?m)^([ \t]*)compileSdk\s*=\s*[^\n]+', r'\g<1>compileSdk = 36', content, count=1)
+              if not count:
+                  updated, count = re.subn(r'(?m)^([ \t]*)compileSdkVersion\s+[^\n]+', r'\g<1>compileSdkVersion 36', content, count=1)
               if count:
                   path.write_text(updated)
                   found = True
+              elif re.search(r'compileSdk\s*=\s*36\b|compileSdkVersion\s+36\b', content):
+                  found = True
           if not found:
-              raise SystemExit('Could not locate Flutter compileSdk declaration in generated Android Gradle files.')
+              raise SystemExit('Could not set Android compileSdk to 36.')
           PYCODE
-      - run: flutter pub get
-      - name: Enforce Android compile SDK 36 for app and Flutter plugins
-        shell: bash
+      - name: Enforce compile SDK 36 for Flutter Android plugins
         run: |
           python3 - <<'PYCODE'
           from pathlib import Path
-          import json, os, re
+          import json, re
           from urllib.parse import unquote, urlparse
 
-          roots = [Path('android')]
-          pub_cache = Path(os.environ.get('PUB_CACHE', str(Path.home() / '.pub-cache')))
-          for hosted_name in ('pub.dev', 'pub.dartlang.org'):
-              hosted = pub_cache / 'hosted' / hosted_name
-              if hosted.exists():
-                  roots.append(hosted)
-
-          # Resolve the exact package roots Flutter selected, rather than assuming
-          # a particular Pub cache layout.
           config = Path('.dart_tool/package_config.json')
+          if not config.exists():
+              raise SystemExit('Flutter package_config.json is missing.')
+          data = json.loads(config.read_text())
           package_roots = {}
-          if config.exists():
-              data = json.loads(config.read_text())
-              for package in data.get('packages', []):
-                  uri = package.get('rootUri', '')
-                  if uri.startswith('file:'):
-                      parsed = urlparse(uri)
-                      root = Path(unquote(parsed.path))
-                  else:
-                      root = (config.parent / unquote(uri)).resolve()
-                  package_roots[package.get('name', '')] = root
-
-          candidates = set()
-          for root in roots:
-              if root.exists():
-                  candidates.update(root.rglob('build.gradle'))
-                  candidates.update(root.rglob('build.gradle.kts'))
-          for name in ('file_picker', 'flutter_plugin_android_lifecycle'):
-              root = package_roots.get(name)
-              if root:
-                  candidates.update(root.glob('android/build.gradle'))
-                  candidates.update(root.glob('android/build.gradle.kts'))
-
-          # Handles all common forms, including `compileSdk flutter.compileSdkVersion`
-          # and `compileSdk = flutter.compileSdkVersion` used by plugin Gradle files.
-          sdk_line = re.compile(r'(?m)^([ \t]*)compileSdk(?:Version)?\b[^\n]*$')
-          touched = []
-          for path in sorted(candidates):
-              if not path.is_file():
-                  continue
-              content = path.read_text()
-              if not sdk_line.search(content):
-                  continue
-              replacement = r'\g<1>' + ('compileSdk = 36' if path.name.endswith('.kts') else 'compileSdkVersion 36')
-              updated, count = sdk_line.subn(replacement, content)
-              if count:
-                  path.write_text(updated)
-                  touched.append(str(path))
-
-          app_files = [Path('android/app/build.gradle'), Path('android/app/build.gradle.kts')]
-          if not any(p.exists() and re.search(r'(?m)^\s*compileSdk(?:Version)?(?:\s*=)?\s*36\b', p.read_text()) for p in app_files):
-              raise SystemExit('Failed to set the application compile SDK to 36.')
+          for package in data.get('packages', []):
+              uri = package.get('rootUri', '')
+              if uri.startswith('file:'):
+                  root = Path(unquote(urlparse(uri).path))
+              else:
+                  root = (config.parent / unquote(uri)).resolve()
+              package_roots[package.get('name', '')] = root
 
           for name in ('file_picker', 'flutter_plugin_android_lifecycle'):
               root = package_roots.get(name)
               if not root:
-                  raise SystemExit(f'Flutter package {name} was not found in .dart_tool/package_config.json.')
+                  raise SystemExit(f'Flutter package {name} was not found.')
               gradle_files = list(root.glob('android/build.gradle')) + list(root.glob('android/build.gradle.kts'))
               if not gradle_files:
-                  raise SystemExit(f'Android Gradle file for {name} was not found at {root}.')
+                  raise SystemExit(f'Gradle file for {name} was not found.')
               for path in gradle_files:
                   content = path.read_text()
+                  if path.name.endswith('.kts'):
+                      updated, count = re.subn(r'(?m)^([ \t]*)compileSdk(?:Version)?\b[^\n]*$', r'\g<1>compileSdk = 36', content)
+                  else:
+                      updated, count = re.subn(r'(?m)^([ \t]*)compileSdk(?:Version)?\b[^\n]*$', r'\g<1>compileSdkVersion 36', content)
+                  if count:
+                      path.write_text(updated)
+                  content = path.read_text()
                   if not re.search(r'(?m)^\s*compileSdk(?:Version)?(?:\s*=)?\s*36\b', content):
-                      raise SystemExit(f'{name} compile SDK was not updated to 36 in {path}.')
-
-          print(f'Enforced compile SDK 36 in {len(touched)} Gradle file(s).')
-          print('\n'.join(touched))
+                      raise SystemExit(f'Could not enforce compileSdk 36 in {path}.')
           PYCODE
-      - name: Build APK only (no app bundle)
+      - name: Build release APK
         run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
         with:
           name: trinex-admin-android-apk
           path: build/app/outputs/flutter-apk/*.apk
@@ -154,6 +142,7 @@ jobs:
 
   build-windows:
     name: Build Windows desktop
+    if: github.event_name == 'workflow_dispatch' && (inputs.platforms == 'windows' || inputs.platforms == 'all')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -163,8 +152,10 @@ jobs:
           cache: true
       - name: Generate Windows scaffolding
         run: flutter create --platforms=windows .
-      - run: flutter pub get
-      - run: flutter build windows --release
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Build Windows release
+        run: flutter build windows --release
       - uses: actions/upload-artifact@v4
         with:
           name: trinex-admin-windows
@@ -173,7 +164,8 @@ jobs:
           retention-days: 14
 
   build-ios:
-    name: Build iOS simulator (unsigned validation)
+    name: Validate iOS simulator build
+    if: github.event_name == 'workflow_dispatch' && (inputs.platforms == 'ios' || inputs.platforms == 'all')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -183,7 +175,7 @@ jobs:
           cache: true
       - name: Generate iOS scaffolding
         run: flutter create --platforms=ios .
-      - run: flutter pub get
-      - name: Compile iOS simulator without signing
-        # Flutter does not support release-mode builds for the iOS simulator.
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Build iOS simulator (unsigned)
         run: flutter build ios --simulator --debug --no-codesign

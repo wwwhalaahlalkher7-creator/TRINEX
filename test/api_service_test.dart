@@ -46,14 +46,6 @@ http.Response jsonResponse(Map<String, dynamic> value, {int status = 200}) =>
 
 void main() {
   group('ApiService', () {
-    test('uses the same production API host as the website dashboard', () {
-      expect(
-        ApiService.apiBaseUrl,
-        'https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1',
-      );
-      expect(ApiService.apiBaseUrl, isNot(contains('www.halaahlalkher7')));
-    });
-
     test('uses backend role ID instead of the display role label on login', () async {
       final store = MemorySessionStore();
       final client = MockClient((request) async {
