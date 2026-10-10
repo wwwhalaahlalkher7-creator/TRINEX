@@ -54,7 +54,7 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
   }
 
   dynamic _redact(dynamic value) {
-    const sensitive = RegExp(
+    final sensitive = RegExp(
       r'(password|token|secret|authorization|cookie|credential|api.?key)',
       caseSensitive: false,
     );

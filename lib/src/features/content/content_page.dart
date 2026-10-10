@@ -335,7 +335,7 @@ class _ContentEditorState extends State<_ContentEditor> {
       ],
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(value: _status, decoration: const InputDecoration(labelText: 'حالة النشر'), items: const [DropdownMenuItem(value: 'draft', child: Text('مسودة')), DropdownMenuItem(value: 'published', child: Text('منشور'))], onChanged: (v) { if (v != null) setState(() => _status = v); }),
-    ]))),
+    ])))),
     actions: [TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: _busy ? null : _save, child: const Text('حفظ'))],
   );
 }

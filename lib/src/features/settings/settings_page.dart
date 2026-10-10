@@ -45,7 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
         TextFormField(controller: keyController, enabled: isNew, decoration: const InputDecoration(labelText: 'مفتاح الإعداد'), validator: (v) { final key = v?.trim() ?? ''; if (key.isEmpty) return 'المفتاح مطلوب'; if (key.length > 128) return 'الحد الأقصى 128 حرفًا'; if (!(key.startsWith('public.') || key == 'Logo')) return 'يسمح فقط بمفاتيح public.* أو Logo'; return null; }),
         const SizedBox(height: 12),
         TextFormField(controller: valueController, minLines: 5, maxLines: 12, decoration: const InputDecoration(labelText: 'القيمة بصيغة JSON', alignLabelWithHint: true, hintText: '{\n  "enabled": true\n}'), validator: (v) { try { jsonDecode(v ?? ''); return null; } catch (_) { return 'أدخل JSON صحيحًا'; } }),
-      ]))),
+      ])))),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
         FilledButton(onPressed: () { if (!formKey.currentState!.validate()) return; Navigator.pop(context, {'key': keyController.text.trim(), 'value': jsonDecode(valueController.text)}); }, child: const Text('حفظ')),

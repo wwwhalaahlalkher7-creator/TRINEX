@@ -49,7 +49,31 @@ class _StudentFormState extends State<_StudentForm>{final _form=GlobalKey<FormSt
  @override void dispose(){_number.dispose();_name.dispose();_email.dispose();super.dispose();}
  List<DropdownMenuItem<String>> _opts(List<Map<String,dynamic>> rows)=>rows.map((r)=>DropdownMenuItem(value:r['id'].toString(),child:Text(_rowName(r),overflow:TextOverflow.ellipsis))).toList();
  void _save(){if(!_form.currentState!.validate()||_dept==null)return;Navigator.pop(context,<String,dynamic>{'student_number':_number.text.trim(),'full_name':_name.text.trim(),'email':_email.text.trim().isEmpty?null:_email.text.trim(),'department_id':_dept,'current_semester_id':_semester,'active':_active?1:0});}
- @override Widget build(BuildContext context)=>AlertDialog(title:Text(widget.student==null?'إضافة طالب':'تعديل بيانات الطالب'),content:SizedBox(width:460,child:SingleChildScrollView(child:Form(key:_form,child:Column(mainAxisSize:MainAxisSize.min,children:[TextFormField(controller:_number,decoration:const InputDecoration(labelText:'الرقم الجامعي *'),validator:(v)=>v==null||!RegExp(r'^[0-9]+(?:-[0-9]+)?$').hasMatch(v.trim())?'صيغة الرقم الجامعي غير صالحة':null),TextFormField(controller:_name,decoration:const InputDecoration(labelText:'الاسم الكامل *'),validator:(v)=>v==null||v.trim().isEmpty?'الاسم مطلوب':null),TextFormField(controller:_email,decoration:const InputDecoration(labelText:'البريد الإلكتروني'),keyboardType:TextInputType.emailAddress,validator:(v)=>v!=null&&v.trim().isNotEmpty&&!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim())?'البريد الإلكتروني غير صالح':null),DropdownButtonFormField<String>(value:_dept,isExpanded:true,decoration:const InputDecoration(labelText:'القسم *'),items:_opts(widget.departments),onChanged:(v)=>setState(()=>_dept=v),validator:(v)=>v==null?'اختر القسم':null),DropdownButtonFormField<String>(value:_semester,isExpanded:true,decoration:const InputDecoration(labelText:'المستوى الدراسي'),items:[const DropdownMenuItem<String>(value:null,child:Text('غير محدد')),..._opts(widget.semesters)],onChanged:(v)=>setState(()=>_semester=v)),SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('الحساب نشط'),value:_active,onChanged:(v)=>setState(()=>_active=v)])))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('إلغاء')),FilledButton(onPressed:_save,child:const Text('حفظ'))]);}
+ @override
+ Widget build(BuildContext context) => AlertDialog(
+   title: Text(widget.student == null ? 'إضافة طالب' : 'تعديل بيانات الطالب'),
+   content: SizedBox(
+     width: 460,
+     child: SingleChildScrollView(
+       child: Form(
+         key: _form,
+         child: Column(
+           mainAxisSize: MainAxisSize.min,
+           children: [
+             TextFormField(controller: _number, decoration: const InputDecoration(labelText: 'الرقم الجامعي *'), validator: (v) => v == null || !RegExp(r'^[0-9]+(?:-[0-9]+)?$').hasMatch(v.trim()) ? 'صيغة الرقم الجامعي غير صالحة' : null),
+             TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'الاسم الكامل *'), validator: (v) => v == null || v.trim().isEmpty ? 'الاسم مطلوب' : null),
+             TextFormField(controller: _email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), keyboardType: TextInputType.emailAddress, validator: (v) => v != null && v.trim().isNotEmpty && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim()) ? 'البريد الإلكتروني غير صالح' : null),
+             DropdownButtonFormField<String>(value: _dept, isExpanded: true, decoration: const InputDecoration(labelText: 'القسم *'), items: _opts(widget.departments), onChanged: (v) => setState(() => _dept = v), validator: (v) => v == null ? 'اختر القسم' : null),
+             DropdownButtonFormField<String>(value: _semester, isExpanded: true, decoration: const InputDecoration(labelText: 'المستوى الدراسي'), items: [const DropdownMenuItem<String>(value: null, child: Text('غير محدد')), ..._opts(widget.semesters)], onChanged: (v) => setState(() => _semester = v)),
+             SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('الحساب نشط'), value: _active, onChanged: (v) => setState(() => _active = v)),
+           ],
+         ),
+       ),
+     ),
+   ),
+   actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: _save, child: const Text('حفظ'))],
+ );
+}
 
 class StaffPage extends StatefulWidget{const StaffPage({super.key,required this.api,required this.currentRole});final ApiService api;final String currentRole;@override State<StaffPage> createState()=>_StaffPageState();}
 class _StaffPageState extends State<StaffPage>{List<Map<String,dynamic>> _staff=[];bool _busy=false;String? _error;static const roles={'super_admin':'Super Admin','moderator':'Admin','content_manager':'Editor','academic_manager':'Academic Admin'};
@@ -66,6 +90,31 @@ class _StaffFormState extends State<_StaffForm>{final _form=GlobalKey<FormState>
  @override void initState(){super.initState();final m=widget.member;_user=TextEditingController(text:m?['user_id']?.toString()??'');_name=TextEditingController(text:m?['display_name']?.toString()??'');_email=TextEditingController(text:m?['email']?.toString()??'');_role=m?['role_id']?.toString()??'content_manager';_initialRole=_role;_active=m==null||m['active']==1||m['active']==true;}
  @override void dispose(){_user.dispose();_name.dispose();_email.dispose();_password.dispose();super.dispose();}
  void _save(){if(!_form.currentState!.validate())return;final b=<String,dynamic>{'userId':_user.text.trim(),'displayName':_name.text.trim(),'email':_email.text.trim(),'active':_active};if(widget.member==null||_role!=_initialRole)b['roleId']=_role;if(_password.text.isNotEmpty)b['password']=_password.text;Navigator.pop(context,b);}
- @override Widget build(BuildContext context)=>AlertDialog(title:Text(widget.member==null?'إنشاء حساب إداري':'تعديل الحساب الإداري'),content:SizedBox(width:440,child:SingleChildScrollView(child:Form(key:_form,child:Column(mainAxisSize:MainAxisSize.min,children:[TextFormField(controller:_user,decoration:const InputDecoration(labelText:'اسم الدخول *'),validator:(v)=>v==null||v.trim().isEmpty?'اسم الدخول مطلوب':null),TextFormField(controller:_name,decoration:const InputDecoration(labelText:'الاسم الظاهر *'),validator:(v)=>v==null||v.trim().isEmpty?'الاسم مطلوب':null),TextFormField(controller:_email,decoration:const InputDecoration(labelText:'البريد الإلكتروني'),keyboardType:TextInputType.emailAddress),TextFormField(controller:_password,decoration:InputDecoration(labelText:widget.member==null?'كلمة المرور (8 أحرف على الأقل) *':'كلمة مرور جديدة (اختياري)'),obscureText:true,validator:(v)=>widget.member==null&&(v==null||v.length<8)?'كلمة المرور مطلوبة وبحد أدنى 8 أحرف':v!=null&&v.isNotEmpty&&v.length<8?'8 أحرف على الأقل':null),DropdownButtonFormField<String>(value:_role,isExpanded:true,decoration:const InputDecoration(labelText:'الدور'),items:const[DropdownMenuItem(value:'super_admin',child:Text('Super Admin')),DropdownMenuItem(value:'moderator',child:Text('Admin')),DropdownMenuItem(value:'content_manager',child:Text('Editor')),DropdownMenuItem(value:'academic_manager',child:Text('Academic Admin'))],onChanged:(v){if(v!=null)setState(()=>_role=v);}),SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('الحساب نشط'),value:_active,onChanged:(v)=>setState(()=>_active=v)),if(widget.member!=null)const Text('اترك كلمة المرور فارغة للإبقاء على الحالية.')])))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('إلغاء')),FilledButton(onPressed:_save,child:const Text('حفظ'))]);}
+ @override
+ Widget build(BuildContext context) => AlertDialog(
+   title: Text(widget.member == null ? 'إنشاء حساب إداري' : 'تعديل الحساب الإداري'),
+   content: SizedBox(
+     width: 440,
+     child: SingleChildScrollView(
+       child: Form(
+         key: _form,
+         child: Column(
+           mainAxisSize: MainAxisSize.min,
+           children: [
+             TextFormField(controller: _user, decoration: const InputDecoration(labelText: 'اسم الدخول *'), validator: (v) => v == null || v.trim().isEmpty ? 'اسم الدخول مطلوب' : null),
+             TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'الاسم الظاهر *'), validator: (v) => v == null || v.trim().isEmpty ? 'الاسم مطلوب' : null),
+             TextFormField(controller: _email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), keyboardType: TextInputType.emailAddress),
+             TextFormField(controller: _password, decoration: InputDecoration(labelText: widget.member == null ? 'كلمة المرور (8 أحرف على الأقل) *' : 'كلمة مرور جديدة (اختياري)'), obscureText: true, validator: (v) => widget.member == null && (v == null || v.length < 8) ? 'كلمة المرور مطلوبة وبحد أدنى 8 أحرف' : v != null && v.isNotEmpty && v.length < 8 ? '8 أحرف على الأقل' : null),
+             DropdownButtonFormField<String>(value: _role, isExpanded: true, decoration: const InputDecoration(labelText: 'الدور'), items: const [DropdownMenuItem(value: 'super_admin', child: Text('Super Admin')), DropdownMenuItem(value: 'moderator', child: Text('Admin')), DropdownMenuItem(value: 'content_manager', child: Text('Editor')), DropdownMenuItem(value: 'academic_manager', child: Text('Academic Admin'))], onChanged: (v) { if (v != null) setState(() => _role = v); }),
+             SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('الحساب نشط'), value: _active, onChanged: (v) => setState(() => _active = v)),
+             if (widget.member != null) const Text('اترك كلمة المرور فارغة للإبقاء على الحالية.'),
+           ],
+         ),
+       ),
+     ),
+   ),
+   actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: _save, child: const Text('حفظ'))],
+ );
+}
 
 class _Pill extends StatelessWidget{const _Pill(this.text);final String text;@override Widget build(BuildContext context)=>Container(padding:const EdgeInsets.symmetric(horizontal:9,vertical:6),decoration:BoxDecoration(color:Theme.of(context).colorScheme.surfaceContainerHighest,borderRadius:BorderRadius.circular(18)),child:Text(text,style:Theme.of(context).textTheme.labelMedium));}
