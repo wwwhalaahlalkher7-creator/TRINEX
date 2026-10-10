@@ -67,6 +67,44 @@ jobs:
               raise SystemExit('Could not locate Flutter compileSdk declaration in generated Android Gradle files.')
           PYCODE
       - run: flutter pub get
+      - name: Enforce Android compile SDK 36 for app and Flutter plugins
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import os, re
+
+          candidates = [
+              Path('android/app/build.gradle'),
+              Path('android/app/build.gradle.kts'),
+          ]
+          pub_cache = Path(os.environ.get('PUB_CACHE', str(Path.home() / '.pub-cache')))
+          hosted = pub_cache / 'hosted' / 'pub.dev'
+          if hosted.exists():
+              candidates.extend(hosted.glob('*/android/build.gradle'))
+              candidates.extend(hosted.glob('*/android/build.gradle.kts'))
+
+          touched = []
+          for path in candidates:
+              if not path.is_file():
+                  continue
+              content = path.read_text()
+              updated, n1 = re.subn(
+                  r'(?m)^(\s*compileSdk\s*=\s*)[^\n]+', r'\g<1>36', content
+              )
+              updated, n2 = re.subn(
+                  r'(?m)^(\s*compileSdkVersion\s+)[^\n]+', r'\g<1>36', updated
+              )
+              if n1 or n2:
+                  path.write_text(updated)
+                  touched.append(str(path))
+
+          app_gradle = [Path('android/app/build.gradle'), Path('android/app/build.gradle.kts')]
+          if not any(p.exists() and re.search(r'compileSdk\s*=\s*36\b|compileSdkVersion\s+36\b', p.read_text()) for p in app_gradle):
+              raise SystemExit('Failed to set app compileSdk to 36.')
+          print(f'Enforced compile SDK 36 in {len(touched)} Gradle file(s).')
+          print('\n'.join(touched))
+          PYCODE
       - name: Build APK only (no app bundle)
         run: flutter build apk --release
       - uses: actions/upload-artifact@v4
