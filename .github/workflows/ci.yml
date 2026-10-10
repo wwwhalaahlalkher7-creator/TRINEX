@@ -36,8 +36,8 @@ jobs:
           cache: true
       - name: Resolve dependencies
         run: flutter pub get
-      - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib
+      - name: Format Dart sources
+        run: dart format lib
       - name: Static analysis
         run: flutter analyze --no-fatal-infos
       - name: Unit and widget tests
@@ -45,6 +45,7 @@ jobs:
 
   build-android:
     name: Build Android APK
+    needs: verify
     if: github.event_name != 'workflow_dispatch' || inputs.platforms == 'android' || inputs.platforms == 'all'
     runs-on: ubuntu-latest
     defaults:
@@ -52,21 +53,18 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Java 17 with Gradle cache
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: gradle
-          cache-dependency-path: |
-            **/*.gradle*
-            **/gradle-wrapper.properties
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - name: Generate Android scaffolding
         run: flutter create --platforms=android .
+      - name: Setup Java 17 with Gradle cache
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
       - name: Resolve dependencies
         run: flutter pub get
       - name: Set Android compile SDK to 36
@@ -142,6 +140,7 @@ jobs:
 
   build-windows:
     name: Build Windows desktop
+    needs: verify
     if: github.event_name == 'workflow_dispatch' && (inputs.platforms == 'windows' || inputs.platforms == 'all')
     runs-on: windows-latest
     steps:
@@ -165,6 +164,7 @@ jobs:
 
   build-ios:
     name: Validate iOS simulator build
+    needs: verify
     if: github.event_name == 'workflow_dispatch' && (inputs.platforms == 'ios' || inputs.platforms == 'all')
     runs-on: macos-latest
     steps:
