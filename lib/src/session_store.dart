@@ -46,11 +46,23 @@ class SessionStore {
   static const _key = 'trinex_admin_session_v1';
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  Future<AdminSession?> read() async {
+  /// Reads a session even if its access token expired. This is needed so the
+  /// API client can exchange its refresh token before clearing local state.
+  Future<AdminSession?> readIncludingExpired() async {
     final raw = await _storage.read(key: _key);
     if (raw == null) return null;
     final session = AdminSession.fromJson(raw);
-    if (session == null || session.isExpired) {
+    if (session == null) {
+      await clear();
+      return null;
+    }
+    return session;
+  }
+
+  Future<AdminSession?> read() async {
+    final session = await readIncludingExpired();
+    if (session == null) return null;
+    if (session.isExpired) {
       await clear();
       return null;
     }

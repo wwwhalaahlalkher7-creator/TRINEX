@@ -1,86 +1,123 @@
-# TRINEX Admin — Flutter (Android / iOS / Windows)
+# TRINEX-Admin
 
-This is the new, independent native Flutter admin app. It is intentionally separate from the existing student Flutter app and does not modify or delete `website/admin`.
+تطبيق إدارة أصلي مستقل مبني باستخدام Flutter، للاستخدام الإداري المحلي على Android وiOS وWindows. المستودع مستقل عن `Union-App`؛ ولا ينسخ واجهات الموقع أو لوحة التحكم القديمة. يعتمد التصميم على نظام مكونات خاص بالتطبيق، مع العربية وRTL فقط.
 
-## Current starter milestone
+## حالة المشروع
 
-Implemented:
-- Responsive navigation shell: desktop sidebar, mobile drawer, compact bottom navigation.
-- Arabic-first login screen using the existing `/api/v1/auth/staff/login` endpoint.
-- Session persisted through `flutter_secure_storage`.
-- Dashboard overview reads `/api/v1/admin/dashboard/overview`.
-- API base URL override through `--dart-define`.
-- Navigation placeholders for the current admin modules, so the feature map is visible while modules are ported.
+الأساس الحالي يتضمن:
+- واجهة تسجيل دخول عربية.
+- حفظ الجلسة في التخزين الآمن.
+- لوحة معلومات عربية أصلية مرتبطة بمسار API الحالي، تعرض مؤشرات الطلاب والموظفين والمواد والمحتوى والإعلانات والتعليقات.
+- وحدة إشراف فعلية للتعليقات والردود مع تصفية الحالة، وإظهار/إخفاء، وتعليم التعليقات كمحذوفة، وحذف الردود بعد التأكيد.
+- تنقل يراعي معرّفات أدوار Backend المعروفة: `super_admin` و`content_manager` و`academic_manager` و`moderator`؛ وهذا لا يستبدل صلاحيات الخادم.
+- تنقل متجاوب للشاشات الصغيرة والكبيرة.
+- عميل API يدعم GET وPOST وPUT وPATCH وDELETE.
+- تدوير رمز التحديث عبر `/auth/refresh` عند انتهاء رمز الوصول.
+- اختبارات عميل API وقواعد التنقل حسب الدور وGitHub Actions لبناء المنصات.
 
-Not yet complete:
-- CRUD and upload flows for students, staff, content, materials, schedules, moderation, settings, audit/security, and Eino monitoring.
-- Full role/permission-aware navigation.
-- Token refresh parity with the web dashboard.
-- Automated API integration tests, Windows packaging verification, and iOS signing/release setup.
-- Full Arabic/English localization and light/dark theme preferences.
+الوحدات الإدارية الأخرى لا تزال قيد التنفيذ. لا تعتبر هذه النسخة إصدارًا إنتاجيًا قبل نجاح CI والاختبارات على المنصات المستهدفة.
 
-**This starter is not a replacement for the website dashboard yet. Do not remove the existing website admin.**
+## المتطلبات
 
-## Requirements
+- Flutter stable المتوافق مع قيود `pubspec.yaml`.
+- Android: Android SDK.
+- iOS: macOS وXcode للبناء والتوقيع والتثبيت على الأجهزة.
+- Windows: Windows مع Visual Studio وعبء عمل Desktop development with C++.
 
-Install Flutter (stable) and platform toolchains:
-- Android: Android SDK / Android Studio.
-- iOS: macOS with Xcode for build/sign/release. Windows or Linux cannot produce a signed iOS app.
-- Windows: Windows 10/11 with Visual Studio 2022 and the "Desktop development with C++" workload.
-
-## Run locally
+## تجهيز ملفات المنصات وتشغيل التطبيق
 
 ```bash
-flutter pub get
 flutter create --platforms=android,ios,windows .
-flutter run -d windows
-# or select an Android/iOS device in `flutter devices`
+flutter pub get
+flutter analyze
+flutter test
 ```
 
-If platform folders already exist, do not recreate them unnecessarily.
-
-## Build examples
+## تشغيل محلي
 
 ```bash
-flutter build apk --release --dart-define=TRINEX_API_BASE_URL=https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1
-flutter build appbundle --release --dart-define=TRINEX_API_BASE_URL=https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1
-flutter build windows --release --dart-define=TRINEX_API_BASE_URL=https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1
-# iOS build/signing must run on macOS:
-flutter build ios --release --dart-define=TRINEX_API_BASE_URL=https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1
+flutter run -d windows
 ```
 
-Do not commit signing keys, passwords, access tokens, or real admin credentials.
+أو اختر جهاز Android متصلًا/محاكيًا من قائمة `flutter devices`.
 
-## Existing backend contract verified from the supplied Union-App archive
+## بناء محلي
 
-- Login: `POST /auth/staff/login`, body `{ "userId": "...", "password": "..." }`
-- Dashboard summary: `GET /admin/dashboard/overview`
-- Eino usage: `GET /admin/security/eino-usage?hours=24`
-- Health check: `GET /health`
-- Protected requests use `Authorization: Bearer <token>`.
-- API responses may be wrapped in `{ "success": true, "data": ... }`.
+Android APK للتثبيت المحلي:
 
-Default API URL matches the current `website/admin/config.js`. Use the build-time define if the production API URL changes.
+```bash
+flutter build apk --release --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+```
 
-## Module parity checklist
+Windows:
 
-| Existing web module | Flutter module | Status |
-|---|---|---|
-| Dashboard overview | Overview | Starter wired to API |
-| Students | Students | Navigation placeholder |
-| Staff / users | Staff & permissions | Navigation placeholder |
-| Content / news / announcements | Content | Navigation placeholder |
-| Materials / Drive sync | Materials | Navigation placeholder |
-| Schedule | Schedule | Navigation placeholder |
-| Moderation / comments / replies | Moderation | Navigation placeholder |
-| Security / audit logs / auth events | Security | Navigation placeholder |
-| Eino usage / monitor | Eino monitor | Navigation placeholder |
-| Site settings | Settings | Navigation placeholder |
-| Account / password change | Account | Basic session info only |
+```bash
+flutter build windows --release --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+```
 
-## Safe migration policy
+iOS (يجب التنفيذ على macOS):
 
-1. Keep `website/admin` live while Flutter modules are implemented.
-2. Compare each module's read/write operations and permission cases against the web implementation.
-3. Test against a non-production/test account and safe test data first.
-4. Do not remove web files, build copy steps, or CI checks until all modules pass the parity checklist and the owner explicitly approves removal.
+```bash
+flutter build ios --release --no-codesign --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+```
+
+لا تُنتج حزمة AAB؛ التوزيع المستهدف محلي. بناء iOS دون توقيع مخصص للتحقق، وليس حزمة تثبيت نهائية للأجهزة.
+
+## إعداد عنوان API
+
+عنوان الخدمة الافتراضي مضبوط في `lib/src/api_service.dart` لمطابقة نسخة Backend الحالية المرفقة. غيّره وقت البناء باستخدام `TRINEX_API_BASE_URL`. لا تضع كلمات مرور أو مفاتيح إدارية أو أسرار توقيع في المستودع أو داخل التطبيق.
+
+المسارات الحالية التي تم التحقق من وجودها في Backend المرفق:
+- `POST /auth/staff/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /admin/dashboard/overview`
+- `GET /admin/security/eino-usage?hours=24`
+- `GET /health`
+
+وجود المسار في الكود لا يثبت توفره في بيئة الإنتاج؛ يجب اختبار الاتصال باستخدام حساب اختبار مصرح به.
+
+## المستودع وCI
+
+ملف `.github/workflows/ci.yml` يفحص التنسيق والتحليل والاختبارات، ويبني Android APK وWindows، ويتحقق من بناء iOS دون توقيع على macOS. لا ينشر هذا الـworkflow التطبيق إلى متجر أو إلى خدمة إنتاجية.
+
+## الأمان والحدود المعروفة
+
+- صلاحيات الخادم هي المرجع النهائي؛ إخفاء عناصر الواجهة ليس بديلًا عن فحص الصلاحيات في API.
+- رمز التحديث أحادي الاستخدام في Backend الحالي، لذلك يجب حفظ الرمز الجديد بعد كل تحديث ناجح.
+- لا تشارك ملفات البناء الموقعة أو بيانات اعتماد الإدارة في المستودع.
+- تم تنفيذ الوظائف الأساسية لإدارة الطلاب والموظفين والمحتوى والمواد والجداول، لكنها لم تُختبر تكامليًا على خادم حي. لا تزال سجلات الأمان والإعدادات والحساب والفعاليات التعليمية بحاجة إلى استكمال.
+
+## حالة الوحدات
+
+- لوحة المعلومات: موصولة بمسار الإحصائيات.
+- الإشراف والتعليقات: قراءة وتغيير حالة التعليقات والردود، مع حذف الردود.
+- إدارة المحتوى: CRUD أساسي للأخبار والفعاليات والإنجازات مع حقول روابط الصور؛ والإعلانات لمدير النظام فقط في الواجهة الحالية.
+- الإشعارات: سجل الإعلانات المنشورة وإرسال/تحديث الاستهداف عبر API. إدراج الإشعار في قوائم التسليم لا يثبت وصول Push إلى الجهاز؛ ذلك يعتمد على إعداد عامل التسليم بالخادم.
+- رفع الوسائط: رفع صورة JPEG/PNG/WebP حتى 3 ميغابايت عبر `/admin/media` ونسخ الرابط لاستخدامه في المحتوى؛ يعتمد على تهيئة مخزن الوسائط في الخادم.
+- إدارة الطلاب: بحث وعرض وإنشاء وتعديل وتفعيل/إيقاف وحذف مؤكد.
+- الموظفون والصلاحيات: إنشاء وتعديل وتعطيل/تفعيل وحذف مؤكد وتعيين الأدوار، مع قيود الخادم على تعديل حساب المستخدم الحالي.
+- المواد والجداول الأكاديمية: CRUD ومزامنة Google Drive الأساسية.
+- لا تزال الوسائط والإعلانات الموجهة وسجلات الأمان والإعدادات والحساب بحاجة إلى استكمال، كما أن التحليل والبناء والاختبارات الفعلية لم تُشغّل في بيئة التحرير.
+
+عمليات رفع الصور وإرسال الإعلانات الموجهة غير مشمولة بعد في نموذج إدارة المحتوى. راجع `docs/API_CONTRACT_AUDIT.md` قبل توسيع أي مورد.
+
+## Academic administration
+
+The academic workspace includes subject, material, and schedule CRUD screens plus Google Drive sync status/actions. It consumes the existing backend endpoints; Google Drive credentials remain server-side. See `docs/API_CONTRACT_AUDIT.md` for the reviewed routes and `docs/IMPLEMENTATION_PLAN.md` for limitations and verification status.
+
+
+## Student and staff administration
+
+The student and staff screens use the current backend contracts directly. Student deletion and staff deletion are permanent operations and require confirmation. Role labels are mapped to existing backend role IDs; see `docs/API_CONTRACT_AUDIT.md` for the current `moderator` permission limitation and unverified items.
+
+### Phase 7 — Account and security
+
+- Account screen supports changing the signed-in staff password using the backend's current-password verification endpoint.
+- Security screen displays audit history and failed/locked authentication events in read-only mode.
+- Settings screen exposes only public display settings (`public.*`) and the legacy `Logo` key, with JSON validation.
+- These integrations were checked against the supplied backend source. They are not a claim of live-production or native-build verification.
+
+## Latest progress
+
+See [`docs/PHASE8_AUDIT.md`](docs/PHASE8_AUDIT.md) for the security/integration audit, session-refresh concurrency fix, and remaining release gates.

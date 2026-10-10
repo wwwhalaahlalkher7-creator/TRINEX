@@ -1,0 +1,87 @@
+name: TRINEX Admin CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-and-test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate missing platform scaffolding
+        run: flutter create --platforms=android,ios,windows .
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Format Dart sources
+        run: dart format lib test
+      - name: Static analysis
+        run: flutter analyze
+      - name: Unit and widget tests
+        run: flutter test
+
+  build-android-apk:
+    name: Build Android APK (local install)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Android scaffolding
+        run: flutter create --platforms=android .
+      - run: flutter pub get
+      - name: Build APK only (no app bundle)
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trinex-admin-android-apk
+          path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  build-windows:
+    name: Build Windows desktop
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Windows scaffolding
+        run: flutter create --platforms=windows .
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trinex-admin-windows
+          path: build/windows/x64/runner/Release/**
+          if-no-files-found: error
+          retention-days: 14
+
+  build-ios:
+    name: Build iOS (unsigned validation)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate iOS scaffolding
+        run: flutter create --platforms=ios .
+      - run: flutter pub get
+      - name: Compile iOS without signing
+        run: flutter build ios --release --no-codesign
