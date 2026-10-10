@@ -11,6 +11,7 @@ import 'features/users/users_page.dart';
 import 'features/notifications/notifications_page.dart';
 import 'features/media/media_page.dart';
 import 'features/security/security_page.dart';
+import 'features/eino_monitor/eino_monitor_page.dart';
 import 'features/account/account_page.dart';
 import 'features/settings/settings_page.dart';
 
@@ -152,6 +153,8 @@ class _AdminShellState extends State<AdminShell> {
         return AcademicPage(api: widget.api, initialTab: 2);
       case AdminSection.security:
         return SecurityPage(api: widget.api);
+      case AdminSection.eino:
+        return EinoMonitorPage(api: widget.api);
       case AdminSection.settings:
         return SettingsPage(api: widget.api);
       case AdminSection.account:
@@ -238,7 +241,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _userController,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.username],
-                        decoration: const InputDecoration(labelText: 'اسم المستخدم أو المعرّف'),
+                        decoration: const InputDecoration(
+                          labelText: 'اسم المستخدم',
+                          helperText: 'استخدم اسم المستخدم المسجّل في لوحة الموقع.',
+                        ),
                         validator: (value) => value == null || value.trim().isEmpty ? 'أدخل اسم المستخدم' : null,
                       ),
                       const SizedBox(height: 14),
@@ -308,6 +314,9 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   Map<String, dynamic>? _stats;
+  Map<String, dynamic> _einoUsage = {};
+  List<Map<String, dynamic>> _recentNews = [];
+  bool? _apiHealthy;
   bool _loading = true;
   String? _error;
 
@@ -322,6 +331,25 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final stats = await widget.api.getDashboardOverview();
       if (mounted) setState(() => _stats = stats);
+      // Optional dashboard panels fail independently, so a telemetry/news issue
+      // cannot hide the core statistics just like the website dashboard.
+      try {
+        final usage = await widget.api.getEinoUsage(hours: 24);
+        if (mounted) setState(() => _einoUsage = usage);
+      } catch (_) {}
+      try {
+        final newsResponse = await widget.api.getRecentNews(limit: 5);
+        final rawNews = newsResponse['data'];
+        if (mounted) setState(() => _recentNews = rawNews is List
+            ? rawNews.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
+            : <Map<String, dynamic>>[]);
+      } catch (_) {}
+      try {
+        final healthy = await widget.api.checkHealth();
+        if (mounted) setState(() => _apiHealthy = healthy);
+      } catch (_) {
+        if (mounted) setState(() => _apiHealthy = false);
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -330,6 +358,12 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   int _number(String key) => int.tryParse(_stats?[key]?.toString() ?? '') ?? 0;
+
+  Widget _miniMetric(String label, String value) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+    decoration: BoxDecoration(color: TrinexColors.brand.withValues(alpha: .07), borderRadius: BorderRadius.circular(10)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 12)), const SizedBox(height: 3), Text(value, style: const TextStyle(fontWeight: FontWeight.w800))]),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -423,6 +457,42 @@ class _DashboardPageState extends State<DashboardPage> {
             }),
           ],
           const SizedBox(height: 30),
+          const SizedBox(height: 18),
+          LayoutBuilder(builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 900;
+            final healthCard = Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('حالة الخدمة', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Icon(_apiHealthy == true ? Icons.check_circle_outline : _apiHealthy == false ? Icons.error_outline : Icons.hourglass_empty, color: _apiHealthy == true ? TrinexColors.success : _apiHealthy == false ? theme.colorScheme.error : TrinexColors.muted),
+                const SizedBox(width: 8),
+                Expanded(child: Text(_apiHealthy == true ? 'واجهة API متاحة' : _apiHealthy == false ? 'تعذّر التحقق من واجهة API' : 'لم يتم التحقق بعد')),
+              ]),
+            ])));
+            final summary = _einoUsage['summary'] is List ? (_einoUsage['summary'] as List).whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList() : <Map<String, dynamic>>[];
+            int eventTotal(String type) => summary.where((row) => row['eventType'] == type).fold<int>(0, (sum, row) => sum + (int.tryParse(row['eventCount']?.toString() ?? '') ?? 0));
+            final providerErrors = eventTotal('provider_error');
+            final einoCard = Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [Expanded(child: Text('ملخص إينو • 24 ساعة', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))), Chip(label: Text(_einoUsage.isEmpty ? 'غير متاح' : providerErrors == 0 ? 'مستقر' : providerErrors < 5 ? 'تنبيه' : 'يحتاج مراجعة'))]),
+              const SizedBox(height: 8),
+              Wrap(spacing: 12, runSpacing: 8, children: [
+                _miniMetric('نجاح', eventTotal('success').toString()),
+                _miniMetric('أخطاء المزود', providerErrors.toString()),
+                _miniMetric('الحصة اليومية للطلاب', (_einoUsage['limits'] is Map ? (_einoUsage['limits'] as Map)['studentDaily'] : null)?.toString() ?? '—'),
+              ]),
+              const SizedBox(height: 8),
+              Align(alignment: AlignmentDirectional.centerEnd, child: TextButton.icon(onPressed: widget.visibleSections.contains(AdminSection.eino) ? () => widget.onNavigate(AdminSection.eino) : null, icon: const Icon(Icons.monitor_heart_outlined), label: const Text('فتح المراقبة التفصيلية'))),
+            ])));
+            return wide ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: healthCard), const SizedBox(width: 14), Expanded(child: einoCard)]) : Column(children: [healthCard, einoCard]);
+          }),
+          const SizedBox(height: 12),
+          Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [Expanded(child: Text('أحدث الأخبار', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))), Text('${_recentNews.length} عناصر', style: theme.textTheme.bodySmall)]),
+            const SizedBox(height: 8),
+            if (_recentNews.isEmpty) const Text('لا توجد أخبار متاحة أو تعذّر تحميلها.')
+            else for (final item in _recentNews.take(5)) ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: const Icon(Icons.article_outlined), title: Text((item['title'] ?? 'بدون عنوان').toString(), maxLines: 2, overflow: TextOverflow.ellipsis), subtitle: Text((item['publish_at'] ?? item['created_at'] ?? '—').toString()), trailing: Text((item['status'] ?? '').toString())),
+          ]))),
+          const SizedBox(height: 18),
           Row(children: [
             Expanded(child: Text('الوصول السريع', style: theme.textTheme.titleLarge)),
             Text('${quickActions.length} أقسام متاحة', style: theme.textTheme.bodySmall),

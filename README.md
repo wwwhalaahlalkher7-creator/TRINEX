@@ -46,26 +46,26 @@ flutter run -d windows
 Android APK للتثبيت المحلي:
 
 ```bash
-flutter build apk --release --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+flutter build apk --release --dart-define=TRINEX_API_BASE_URL=https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1
 ```
 
 Windows:
 
 ```bash
-flutter build windows --release --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+flutter build windows --release --dart-define=TRINEX_API_BASE_URL=https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1
 ```
 
 iOS (يجب التنفيذ على macOS):
 
 ```bash
-flutter build ios --release --no-codesign --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+flutter build ios --release --no-codesign --dart-define=TRINEX_API_BASE_URL=https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1
 ```
 
 لا تُنتج حزمة AAB؛ التوزيع المستهدف محلي. بناء iOS دون توقيع مخصص للتحقق، وليس حزمة تثبيت نهائية للأجهزة.
 
 ## إعداد عنوان API
 
-عنوان الخدمة الافتراضي مضبوط في `lib/src/api_service.dart` لمطابقة نسخة Backend الحالية المرفقة. غيّره وقت البناء باستخدام `TRINEX_API_BASE_URL`. لا تضع كلمات مرور أو مفاتيح إدارية أو أسرار توقيع في المستودع أو داخل التطبيق.
+عنوان الخدمة الافتراضي يطابق `website/admin/config.js` في مشروع `Union-App`: `https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1`. انتبه إلى الشرطة `-` بين `www` و`halaahlalkher7`؛ استخدام نقطة بدل الشرطة يؤدي إلى `DNS_PROBE_FINISHED_NXDOMAIN`. يصحح عميل Flutter هذا الخطأ المعروف تلقائيًا حتى لو مرّ العنوان القديم الخاطئ عبر `TRINEX_API_BASE_URL`. لا تضع كلمات مرور أو مفاتيح إدارية أو أسرار توقيع في المستودع أو داخل التطبيق.
 
 المسارات الحالية التي تم التحقق من وجودها في Backend المرفق:
 - `POST /auth/staff/login`
@@ -91,6 +91,7 @@ flutter build ios --release --no-codesign --dart-define=TRINEX_API_BASE_URL=http
 ## حالة الوحدات
 
 - لوحة المعلومات: موصولة بمسار الإحصائيات.
+- مراقبة إينو: تعرض ملخص الطلبات ومعدل النجاح ومتوسط زمن الاستجابة والوحدات والمزودات والمهام وآخر الطلبات، مع اختيار نافذة من 6 ساعات إلى 7 أيام؛ لا تعرض محتوى المحادثات أو بيانات الطلاب الحساسة.
 - الإشراف والتعليقات: قراءة وتغيير حالة التعليقات والردود، مع حذف الردود.
 - إدارة المحتوى: CRUD أساسي للأخبار والفعاليات والإنجازات مع حقول روابط الصور؛ والإعلانات لمدير النظام فقط في الواجهة الحالية.
 - الإشعارات: سجل الإعلانات المنشورة وإرسال/تحديث الاستهداف عبر API. إدراج الإشعار في قوائم التسليم لا يثبت وصول Push إلى الجهاز؛ ذلك يعتمد على إعداد عامل التسليم بالخادم.

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -23,10 +24,20 @@ class ApiService {
   static const _timeout = Duration(seconds: 25);
   Future<AdminSession>? _refreshFuture;
 
-  Uri _uri(String path) {
-    final base = _configuredBase.replaceFirst(RegExp(r'/+$'), '');
-    return Uri.parse('$base$path');
+  /// The website dashboard is the source of truth for the production API host.
+  /// Correct the old dot-separated account-subdomain typo if it was supplied via
+  /// --dart-define; Cloudflare workers.dev account subdomains use the configured
+  /// literal hostname from website/admin/config.js.
+  static String get apiBaseUrl {
+    var base = _configuredBase.trim().replaceFirst(RegExp(r'/+$'), '');
+    base = base.replaceFirst(
+      'leo-association-api.www.halaahlalkher7.workers.dev',
+      'leo-association-api.www-halaahlalkher7.workers.dev',
+    );
+    return base;
   }
+
+  Uri _uri(String path) => Uri.parse('${apiBaseUrl}$path');
 
   Future<Map<String, dynamic>> _decodeResponse(http.Response response) async {
     Map<String, dynamic> decoded;
@@ -113,7 +124,18 @@ class ApiService {
       headers['Authorization'] = 'Bearer ${session.accessToken}';
     }
 
-    final response = await _send(method, _uri(path), headers: headers, body: body);
+    late final http.Response response;
+    try {
+      response = await _send(method, _uri(path), headers: headers, body: body);
+    } on SocketException {
+      throw const ApiServiceException(
+        'تعذّر العثور على خادم لوحة التحكم. تحقق من عنوان API واتصال الإنترنت.',
+      );
+    } on http.ClientException {
+      throw const ApiServiceException(
+        'تعذّر الاتصال بخادم لوحة التحكم. تحقق من عنوان API واتصال الإنترنت.',
+      );
+    }
     if (authenticated &&
         response.statusCode == 401 &&
         retryAfterRefresh &&
@@ -294,6 +316,9 @@ class ApiService {
 
   Future<Map<String, dynamic>> getEinoUsage({int hours = 24}) =>
       _request('GET', '/admin/security/eino-usage?hours=${hours.clamp(1, 168)}');
+
+  Future<Map<String, dynamic>> getRecentNews({int limit = 5}) =>
+      _request('GET', '/admin/news?limit=${limit.clamp(1, 20)}');
 
   Future<bool> checkHealth() async {
     try {
