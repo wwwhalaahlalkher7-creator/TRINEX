@@ -59,6 +59,28 @@ jobs:
           cache: true
       - name: Generate Android scaffolding
         run: flutter create --platforms=android .
+      - name: Ensure Android internet permission
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import re
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          if not manifest.exists():
+              raise SystemExit(f"Android manifest was not generated: {manifest}")
+          text = manifest.read_text()
+          permission = '    <uses-permission android:name="android.permission.INTERNET"/>'
+          if "android.permission.INTERNET" not in text:
+              match = re.search(r"<manifest\b[^>]*>", text)
+              if not match:
+                  raise SystemExit("Could not find the opening <manifest> tag.")
+              text = text[:match.end()] + "\n" + permission + text[match.end():]
+              manifest.write_text(text)
+          if "android.permission.INTERNET" not in manifest.read_text():
+              raise SystemExit("Android INTERNET permission is missing.")
+          print("Android INTERNET permission is present.")
+          PYCODE
       - name: Setup Java 17 with Gradle cache
         uses: actions/setup-java@v5
         with:
