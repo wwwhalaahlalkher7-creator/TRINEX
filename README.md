@@ -1,64 +1,136 @@
-# TRINEX Admin
+# TRINEX-Admin
 
-تطبيق إدارة أصلي مبني بـ Flutter لإدارة محتوى وخدمات TRINEX من واجهة عربية، مع الاستفادة من واجهات API الحالية. لا يحوّل لوحة الإدارة إلى WebView ولا يغيّر الموقع العام أو الخادم عند البناء.
+تطبيق إدارة أصلي مستقل مبني باستخدام Flutter، للاستخدام الإداري المحلي على Android وiOS وWindows. المستودع مستقل عن `Union-App`؛ ولا ينسخ واجهات الموقع أو لوحة التحكم القديمة. يعتمد التصميم على نظام مكونات خاص بالتطبيق، مع العربية وRTL فقط.
+
+## حالة المشروع
+
+الأساس الحالي يتضمن:
+- واجهة تسجيل دخول عربية.
+- حفظ الجلسة في التخزين الآمن.
+- لوحة معلومات عربية أصلية مرتبطة بمسار API الحالي، تعرض مؤشرات الطلاب والموظفين والمواد والمحتوى والإعلانات والتعليقات.
+- وحدة إشراف للتعليقات والردود، بالإضافة إلى مراجعة بلاغات الدردشة العامة وتغيير حالة البلاغ والرسالة عبر API.
+- تنقل يراعي معرّفات أدوار Backend المعروفة: `super_admin` و`content_manager` و`academic_manager` و`moderator`؛ وهذا لا يستبدل صلاحيات الخادم.
+- تنقل متجاوب للشاشات الصغيرة والكبيرة.
+- عميل API يدعم GET وPOST وPUT وPATCH وDELETE.
+- تدوير رمز التحديث عبر `/auth/refresh` عند انتهاء رمز الوصول.
+- اختبارات عميل API وقواعد التنقل حسب الدور وGitHub Actions لبناء المنصات.
+
+الوحدات الإدارية الأخرى لا تزال قيد التنفيذ. لا تعتبر هذه النسخة إصدارًا إنتاجيًا قبل نجاح CI والاختبارات على المنصات المستهدفة.
 
 ## المتطلبات
-- Flutter 3.29 أو أحدث، وDart ضمن المجال المحدد في `pubspec.yaml`.
-- اتصال بعنوان API المهيأ داخل `lib/src/api_service.dart`، وصلاحيات إدارة صالحة على الخادم.
-- Android SDK عند بناء نسخة Android.
 
-## تشغيل وفحص المشروع
+- Flutter stable المتوافق مع قيود `pubspec.yaml`.
+- Android: Android SDK.
+- iOS: macOS وXcode للبناء والتوقيع والتثبيت على الأجهزة.
+- Windows: Windows مع Visual Studio وعبء عمل Desktop development with C++.
+
+## تجهيز ملفات المنصات وتشغيل التطبيق
+
 ```bash
+flutter create --platforms=android,ios,windows .
 flutter pub get
 flutter analyze
 flutter test
-flutter run
 ```
 
-## بناء Android
+## تشغيل محلي
+
 ```bash
-flutter build apk --release
+flutter run -d windows
 ```
-الملف الناتج عادةً: `build/app/outputs/flutter-apk/app-release.apk`.
 
-## هيكل المجلدات
-- `lib/main.dart`: نقطة تشغيل التطبيق.
-- `lib/src/admin_app.dart`: إعداد MaterialApp، اللغة العربية، اتجاه RTL، والثيم حسب إعداد الجهاز.
-- `lib/src/shell.dart`: غلاف التطبيق والتنقل بين أقسام الإدارة.
-- `lib/src/api_service.dart`: طبقة الاتصال بالخادم ومعالجة طلبات API.
-- `lib/src/session_store.dart`: حفظ جلسة الإدارة بأمان.
-- `lib/src/admin_permissions.dart`: قواعد إظهار/تقييد الوظائف بحسب الصلاحيات.
-- `lib/src/design_system/`: الألوان والثيم وعناصر الإدخال المشتركة.
-- `lib/src/features/`: صفحات الإدارة حسب المجال (المحتوى، المستخدمون، الأكاديمية، الإشعارات، الإعدادات، الوسائط، الإشراف، الأمان والحساب).
-- `test/`: اختبارات الوحدات والواجهات.
-- `.github/workflows/ci.yml`: فحوصات CI والبناء الآلي.
+أو اختر جهاز Android متصلًا/محاكيًا من قائمة `flutter devices`.
 
-## مبادئ واجهة الإدارة
-- اللغة الافتراضية الوحيدة هي العربية واتجاه العرض RTL. تبقى الإنجليزية في المفاتيح التقنية، أسماء الحقول التي يفرضها API، والمعرّفات والروابط وبيانات JSON.
-- `ThemeMode.system` هو مصدر اختيار الوضع؛ لا تضف مفتاح تبديل يدويًا ما لم تتغير المتطلبات.
-- استخدم مكونات `design_system` بدل إعادة كتابة مكونات مشتركة داخل كل صفحة.
-- استخدم `AdminDateTimeField` للتاريخ/الوقت: يعرض منتقي تاريخ وواجهة ساعة بنظام 12 ساعة ويكتب قيمة ISO-8601 في وحدة التحكم. الحقول التقنية التي تتطلب تنسيقًا حرفيًا يمكن أن تبقى نصية.
-- في رفع الصور من نموذج المحتوى، استخدم زر اختيار ورفع الصورة الموجود في النموذج نفسه. رابط الصورة اليدوي بديل اختياري للحالات التي يكون فيها الملف مستضافًا مسبقًا.
-- اجعل حقول الاختيار المحدود قوائم منسدلة، ولا تخترع قيمًا غير مدعومة من الخادم. قبل إضافة خيارات جديدة، تحقق من عقد API أو القيم الفعلية في قاعدة البيانات.
+## بناء محلي
 
-## قواعد CRUD والأمان
-- CRUD تعني الإنشاء والقراءة والتعديل والحذف. لا تضف حذفًا لبيانات لا يتيح الخادم مسارًا موثقًا لحذفها.
-- الحذف النهائي يجب أن يسبقه تأكيد واضح، خصوصًا للسجلات ذات العلاقات أو الملفات الخارجية.
-- بعد أي عملية كتابة، حدّث القائمة من الخادم واعرض نتيجة نجاح/فشل مفهومة.
-- لا تعتبر إخفاء زر في الواجهة حماية كافية؛ يجب أن يتحقق الخادم من الجلسة والصلاحية لكل طلب.
-- لا تسجل كلمات المرور أو رموز الجلسات أو بيانات الاعتماد في السجلات.
+Android APK للتثبيت المحلي:
 
-## إضافة صفحة أو تعديلها
-1. حدّد مسارات API الفعلية وطرق HTTP والحقول المطلوبة والاختيارية قبل تعديل الواجهة.
-2. أضف الصفحة تحت `lib/src/features/<feature>/`، واستخدم `ApiService` بدل طلبات HTTP مستقلة.
-3. اربط حالات التحميل، والخطأ، والفراغ، وإعادة المحاولة، والنجاح.
-4. استخدم عناصر Material 3 والثيم المشترك، وراعِ RTL، وتباين WCAG AA، وأهداف لمس لا تقل عن 44×44 بكسل.
-5. اختبر إنشاء/قراءة/تعديل/حذف كلما كانت العمليات مدعومة فعلًا، ثم نفّذ `flutter analyze` و`flutter test`.
-6. لا تغيّر الموقع العام أو نشر الخادم ضمن تعديلات تطبيق الإدارة إلا بطلب صريح منفصل.
+```bash
+flutter build apk --release --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+```
 
-## قبل إصدار نسخة
-- شغّل التحليل والاختبارات.
-- اختبر تسجيل الدخول وانتهاء الجلسة والصلاحيات.
-- اختبر الواجهات في الوضعين الفاتح والداكن مع ثيم الجهاز.
-- اختبر رفع الوسائط والتواريخ والأوقات على جهاز فعلي إن أمكن.
-- راجع `docs/` وعقد API قبل أي تغيير يلامس بيانات الإنتاج.
+Windows:
+
+```bash
+flutter build windows --release --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+```
+
+iOS (يجب التنفيذ على macOS):
+
+```bash
+flutter build ios --release --no-codesign --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
+```
+
+لا تُنتج حزمة AAB؛ التوزيع المستهدف محلي. بناء iOS دون توقيع مخصص للتحقق، وليس حزمة تثبيت نهائية للأجهزة.
+
+## اتصال Android بالشبكة
+
+ينشئ CI ملفات Android قبل البناء، ثم يتحقق من وجود تصريح
+`android.permission.INTERNET` في `AndroidManifest.xml` ويضيفه إذا كان غائبًا.
+هذا التصريح ضروري حتى يستطيع APK الاتصال بخدمة API عبر HTTPS. بعد كل بناء،
+يجب اختبار اتصال `/health` على الجهاز الفعلي؛ فنجاح البناء وحده لا يثبت أن نطاق
+Cloudflare قابل للحل أو أن الخدمة متاحة.
+
+## إعداد عنوان API
+
+عنوان الخدمة الافتراضي مضبوط في `lib/src/api_service.dart` لمطابقة نسخة Backend الحالية المرفقة. غيّره وقت البناء باستخدام `TRINEX_API_BASE_URL`. لا تضع كلمات مرور أو مفاتيح إدارية أو أسرار توقيع في المستودع أو داخل التطبيق.
+
+المسارات الحالية التي تم التحقق من وجودها في Backend المرفق:
+- `POST /auth/staff/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /admin/dashboard/overview`
+- `GET /admin/security/eino-usage?hours=24`
+- `GET /health`
+
+وجود المسار في الكود لا يثبت توفره في بيئة الإنتاج؛ يجب اختبار الاتصال باستخدام حساب اختبار مصرح به.
+
+## المستودع وCI
+
+ملف `.github/workflows/ci.yml` يفحص التنسيق والتحليل والاختبارات، ويبني Android APK وWindows، ويتحقق من بناء iOS دون توقيع على macOS. لا ينشر هذا الـworkflow التطبيق إلى متجر أو إلى خدمة إنتاجية.
+
+## الأمان والحدود المعروفة
+
+- صلاحيات الخادم هي المرجع النهائي؛ إخفاء عناصر الواجهة ليس بديلًا عن فحص الصلاحيات في API.
+- رمز التحديث أحادي الاستخدام في Backend الحالي، لذلك يجب حفظ الرمز الجديد بعد كل تحديث ناجح.
+- لا تشارك ملفات البناء الموقعة أو بيانات اعتماد الإدارة في المستودع.
+- تم تنفيذ الوظائف الأساسية لإدارة الطلاب والموظفين والمحتوى والمواد والجداول، لكنها لم تُختبر تكامليًا على خادم حي. لا تزال سجلات الأمان والإعدادات والحساب والفعاليات التعليمية بحاجة إلى استكمال.
+
+## حالة الوحدات
+
+- لوحة المعلومات: موصولة بمسار الإحصائيات.
+- الإشراف والتعليقات: قراءة وتغيير حالة التعليقات والردود، مع حذف الردود.
+- إدارة المحتوى: CRUD أساسي للأخبار والفعاليات والإنجازات مع حقول روابط الصور؛ والإعلانات لمدير النظام فقط في الواجهة الحالية.
+- الإشعارات: سجل الإعلانات المنشورة وإرسال/تحديث الاستهداف عبر API. إدراج الإشعار في قوائم التسليم لا يثبت وصول Push إلى الجهاز؛ ذلك يعتمد على إعداد عامل التسليم بالخادم.
+- رفع الوسائط: رفع صورة JPEG/PNG/WebP حتى 3 ميغابايت عبر `/admin/media` ونسخ الرابط لاستخدامه في المحتوى؛ يعتمد على تهيئة مخزن الوسائط في الخادم.
+- إدارة الطلاب: بحث وعرض وإنشاء وتعديل وتفعيل/إيقاف وحذف مؤكد.
+- الموظفون والصلاحيات: إنشاء وتعديل وتعطيل/تفعيل وحذف مؤكد وتعيين الأدوار، مع قيود الخادم على تعديل حساب المستخدم الحالي.
+- المواد والجداول الأكاديمية: CRUD ومزامنة Google Drive الأساسية.
+- أُضيفت مراقبة Eino التفصيلية وبلاغات الدردشة وربط رفع الصور من محرر المحتوى. لم تُشغّل اختبارات Flutter والبناء الفعلي في بيئة التحرير؛ راجع `docs/ADMIN_PARITY_AUDIT.md` لمصفوفة الربط وحدود التحقق.
+
+عمليات رفع الصور وإرسال الإعلانات الموجهة غير مشمولة بعد في نموذج إدارة المحتوى. راجع `docs/API_CONTRACT_AUDIT.md` قبل توسيع أي مورد.
+
+## Academic administration
+
+The academic workspace includes subject, material, and schedule CRUD screens plus Google Drive sync status/actions. It consumes the existing backend endpoints; Google Drive credentials remain server-side. See `docs/API_CONTRACT_AUDIT.md` for the reviewed routes and `docs/IMPLEMENTATION_PLAN.md` for limitations and verification status.
+
+
+## Student and staff administration
+
+The student and staff screens use the current backend contracts directly. Student deletion and staff deletion are permanent operations and require confirmation. Role labels are mapped to existing backend role IDs; see `docs/API_CONTRACT_AUDIT.md` for the current `moderator` permission limitation and unverified items.
+
+### Phase 7 — Account and security
+
+- Account screen supports changing the signed-in staff password using the backend's current-password verification endpoint.
+- Security screen displays audit history and failed/locked authentication events in read-only mode.
+- Settings screen exposes only public display settings (`public.*`) and the legacy `Logo` key, with JSON validation.
+- These integrations were checked against the supplied backend source. They are not a claim of live-production or native-build verification.
+
+## Latest progress
+
+See [`docs/PHASE8_AUDIT.md`](docs/PHASE8_AUDIT.md) for the security/integration audit, session-refresh concurrency fix, and remaining release gates.
+
+
+## Admin parity
+
+راجع [`docs/ADMIN_PARITY_AUDIT.md`](docs/ADMIN_PARITY_AUDIT.md) لمقارنة وظائف لوحة الويب السابقة بالشاشات الأصلية وعقود API، مع بيان ما لم يُتحقق منه على خادم حي.

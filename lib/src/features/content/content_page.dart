@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../api_service.dart';
 import '../../admin_permissions.dart';
-import '../../design_system/admin_date_time_field.dart';
 
 enum _ContentKind { news, events, achievements, announcements }
 
@@ -373,16 +372,16 @@ class _ContentEditorState extends State<_ContentEditor> {
         TextFormField(controller: _publisher, decoration: const InputDecoration(labelText: 'اسم الناشر (اختياري)')),
       ],
       if (widget.kind == _ContentKind.news) ...[
-        const SizedBox(height: 12), AdminDateTimeField(controller: _publishAt, label: 'موعد النشر (اختياري)'),
-        const SizedBox(height: 12), AdminDateTimeField(controller: _expiresAt, label: 'موعد انتهاء الصلاحية (اختياري)'),
+        const SizedBox(height: 12), TextFormField(controller: _publishAt, decoration: const InputDecoration(labelText: 'تاريخ النشر بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _expiresAt, decoration: const InputDecoration(labelText: 'تاريخ انتهاء الصلاحية بصيغة ISO (اختياري)')),
       ],
       if (widget.kind == _ContentKind.events) ...[
         const SizedBox(height: 12), TextFormField(controller: _location, decoration: const InputDecoration(labelText: 'المكان (اختياري)')),
-        const SizedBox(height: 12), AdminDateTimeField(controller: _eventAt, label: 'موعد الفعالية (اختياري)'),
-        const SizedBox(height: 12), AdminDateTimeField(controller: _endAt, label: 'نهاية الفعالية (اختياري)'),
+        const SizedBox(height: 12), TextFormField(controller: _eventAt, decoration: const InputDecoration(labelText: 'موعد الفعالية بصيغة ISO (اختياري، مثل 2026-11-05T10:00:00Z)')),
+        const SizedBox(height: 12), TextFormField(controller: _endAt, decoration: const InputDecoration(labelText: 'نهاية الفعالية بصيغة ISO (اختياري)')),
       ],
       if (widget.kind == _ContentKind.achievements) ...[
-        const SizedBox(height: 12), AdminDateTimeField(controller: _achievedAt, label: 'تاريخ الإنجاز (اختياري)', dateOnly: true),
+        const SizedBox(height: 12), TextFormField(controller: _achievedAt, decoration: const InputDecoration(labelText: 'تاريخ الإنجاز بصيغة ISO (اختياري)')),
         const SizedBox(height: 12), TextFormField(controller: _highlightsTitle, decoration: const InputDecoration(labelText: 'عنوان أبرز المحاور')),
         const SizedBox(height: 12), TextFormField(controller: _highlights, minLines: 2, maxLines: 6, decoration: const InputDecoration(labelText: 'أبرز المحاور (كل محور في سطر)')),
       ],
@@ -390,8 +389,8 @@ class _ContentEditorState extends State<_ContentEditor> {
         const SizedBox(height: 12), TextFormField(controller: _type, decoration: const InputDecoration(labelText: 'نوع الإعلان (مثل general أو urgent)')),
         const SizedBox(height: 12), TextFormField(controller: _targetDepartment, decoration: const InputDecoration(labelText: 'معرّف القسم المستهدف (اختياري)')),
         const SizedBox(height: 12), TextFormField(controller: _targetSemester, decoration: const InputDecoration(labelText: 'معرّف الفصل المستهدف (اختياري)')),
-        const SizedBox(height: 12), AdminDateTimeField(controller: _publishAt, label: 'موعد النشر (اختياري)'),
-        const SizedBox(height: 12), AdminDateTimeField(controller: _expiresAt, label: 'موعد انتهاء الإعلان (اختياري)'),
+        const SizedBox(height: 12), TextFormField(controller: _publishAt, decoration: const InputDecoration(labelText: 'موعد النشر بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _expiresAt, decoration: const InputDecoration(labelText: 'موعد انتهاء الإعلان بصيغة ISO (اختياري)')),
       ],
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(value: _status, decoration: const InputDecoration(labelText: 'حالة النشر'), items: const [DropdownMenuItem(value: 'draft', child: Text('مسودة')), DropdownMenuItem(value: 'published', child: Text('منشور'))], onChanged: (v) { if (v != null) setState(() => _status = v); }),
