@@ -27,6 +27,7 @@ abstract final class AdminPermissions {
         return const {
           AdminSection.overview,
           AdminSection.moderation,
+          AdminSection.chatReports,
           AdminSection.notifications,
           AdminSection.account,
         }.contains(section);

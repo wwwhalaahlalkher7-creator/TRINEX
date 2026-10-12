@@ -38,6 +38,53 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
+  Future<void> _editDraft(Map<String, dynamic> item) async {
+    final id = item['id']?.toString() ?? '';
+    if (id.isEmpty || item['status'] != 'draft') return;
+    final title = TextEditingController(text: item['title']?.toString() ?? '');
+    final body = TextEditingController(text: item['body']?.toString() ?? '');
+    final type = TextEditingController(text: item['type']?.toString() ?? 'general');
+    final department = TextEditingController(text: item['target_department_id']?.toString() ?? '');
+    final semester = TextEditingController(text: item['target_semester_id']?.toString() ?? '');
+    final formKey = GlobalKey<FormState>();
+    final result = await showDialog<Map<String, dynamic>>(context: context, builder: (context) => AlertDialog(
+      title: const Text('تحرير مسودة الإشعار'),
+      content: SizedBox(width: 520, child: Form(key: formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextFormField(controller: title, decoration: const InputDecoration(labelText: 'العنوان'), validator: (v) => v == null || v.trim().isEmpty ? 'العنوان مطلوب' : null),
+        const SizedBox(height: 10), TextFormField(controller: body, minLines: 3, maxLines: 6, decoration: const InputDecoration(labelText: 'نص الإشعار'), validator: (v) => v == null || v.trim().isEmpty ? 'النص مطلوب' : null),
+        const SizedBox(height: 10), TextFormField(controller: type, decoration: const InputDecoration(labelText: 'النوع / فئة الإشعار')),
+        const SizedBox(height: 10), TextFormField(controller: department, decoration: const InputDecoration(labelText: 'معرّف القسم المستهدف (اتركه فارغًا للكل)')),
+        const SizedBox(height: 10), TextFormField(controller: semester, decoration: const InputDecoration(labelText: 'معرّف الفصل المستهدف (اتركه فارغًا للكل)')),
+      ])))),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(context, {'title': title.text.trim(), 'body': body.text.trim(), 'type': type.text.trim().isEmpty ? 'general' : type.text.trim(), 'target_department_id': department.text.trim().isEmpty ? null : department.text.trim(), 'target_semester_id': semester.text.trim().isEmpty ? null : semester.text.trim()}); }, child: const Text('حفظ المسودة'))],
+    ));
+    title.dispose(); body.dispose(); type.dispose(); department.dispose(); semester.dispose();
+    if (result == null || !mounted) return;
+    try {
+      await widget.api.patch('/admin/announcements/$id', body: result);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ المسودة. لم يتم إرسالها.')));
+      await _load();
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ المسودة: $e'))); }
+  }
+
+  Future<void> _approveDraft(Map<String, dynamic> item) async {
+    final id = item['id']?.toString() ?? '';
+    if (id.isEmpty || item['status'] != 'draft') return;
+    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: const Text('اعتماد المسودة؟'),
+      content: Text('سيتم نشر «${item['title'] ?? 'الإشعار'}» لتصبح جاهزة للإرسال. الاعتماد لا يعني إرسالها تلقائيًا.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('اعتماد ونشر'))],
+    ));
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.api.patch('/admin/announcements/$id', body: {'status': 'published'});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم اعتماد الإشعار ونشره. لم يُرسل تلقائيًا.')));
+      await _load();
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر اعتماد المسودة: $e'))); }
+  }
+
   Future<void> _send(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
     if (id.isEmpty || item['status'] != 'published') return;
@@ -79,7 +126,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('الإشعارات', style: theme.textTheme.headlineMedium?.copyWith(fontSize: 28, fontWeight: FontWeight.w800)),
               const SizedBox(height: 6),
-              Text('إدارة إرسال الإعلانات المنشورة إلى الطلاب عبر نظام الاستهداف الحالي.', style: theme.textTheme.bodyMedium),
+              Text('إدارة مسودات الإشعارات المرتبطة بالمحتوى واعتمادها قبل إرسال الإعلانات المنشورة إلى الطلاب.', style: theme.textTheme.bodyMedium),
             ])),
             IconButton(onPressed: _loading ? null : _load, tooltip: 'تحديث', icon: const Icon(Icons.refresh)),
           ]),
@@ -105,11 +152,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 ])),
               ]),
               const SizedBox(height: 12),
-              Align(alignment: AlignmentDirectional.centerEnd, child: FilledButton.tonalIcon(
-                onPressed: item['status'] == 'published' && !_sending.contains(item['id']?.toString()) ? () => _send(item) : null,
-                icon: _sending.contains(item['id']?.toString()) ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_outlined),
-                label: const Text('إرسال / تحديث الاستهداف'),
-              )),
+              Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 8, children: [
+                if (item['status'] == 'draft') ...[
+                  OutlinedButton.icon(onPressed: () => _editDraft(item), icon: const Icon(Icons.edit_outlined), label: const Text('تحرير المسودة')),
+                  FilledButton.tonalIcon(onPressed: () => _approveDraft(item), icon: const Icon(Icons.fact_check_outlined), label: const Text('اعتماد ونشر')),
+                ],
+                FilledButton.tonalIcon(
+                  onPressed: item['status'] == 'published' && !_sending.contains(item['id']?.toString()) ? () => _send(item) : null,
+                  icon: _sending.contains(item['id']?.toString()) ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_outlined),
+                  label: const Text('إرسال / تحديث الاستهداف'),
+                ),
+              ]),
             ]))),
           ],
         ],

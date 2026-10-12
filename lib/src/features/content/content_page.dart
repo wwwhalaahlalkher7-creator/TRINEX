@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../api_service.dart';
 import '../../admin_permissions.dart';
@@ -8,7 +11,8 @@ enum _ContentKind { news, events, achievements, announcements }
 extension on _ContentKind {
   String get endpoint => switch (this) {
         _ContentKind.news => 'news',
-        _ContentKind.events => 'events',
+        // The backend exposes the events table through the legacy 'activities' resource.
+        _ContentKind.events => 'activities',
         _ContentKind.achievements => 'achievements',
         _ContentKind.announcements => 'announcements',
       };
@@ -88,7 +92,7 @@ class _ContentPageState extends State<ContentPage> {
     final isCreate = item == null;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => _ContentEditor(kind: _kind, initial: item),
+      builder: (_) => _ContentEditor(api: widget.api, kind: _kind, initial: item),
     );
     if (result == null || !mounted) return;
     try {
@@ -237,7 +241,8 @@ class _ContentPageState extends State<ContentPage> {
 }
 
 class _ContentEditor extends StatefulWidget {
-  const _ContentEditor({required this.kind, this.initial});
+  const _ContentEditor({required this.api, required this.kind, this.initial});
+  final ApiService api;
   final _ContentKind kind;
   final Map<String, dynamic>? initial;
   @override
@@ -256,8 +261,36 @@ class _ContentEditorState extends State<_ContentEditor> {
   late final TextEditingController _eventAt;
   late final TextEditingController _endAt;
   late final TextEditingController _achievedAt;
+  late final TextEditingController _publishAt;
+  late final TextEditingController _expiresAt;
+  late final TextEditingController _targetDepartment;
+  late final TextEditingController _targetSemester;
+  late final TextEditingController _highlightsTitle;
+  late final TextEditingController _highlights;
   late String _status;
   bool _busy = false;
+  bool _uploadingImage = false;
+  String? _imageError;
+
+  Future<void> _pickAndUploadImage() async {
+    final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'], withData: true);
+    if (picked == null || picked.files.isEmpty || !mounted) return;
+    final file = picked.files.single;
+    final bytes = file.bytes;
+    if (bytes == null || bytes.isEmpty) { setState(() => _imageError = 'تعذر قراءة الصورة من الجهاز.'); return; }
+    if (bytes.length > 3 * 1024 * 1024) { setState(() => _imageError = 'الحد الأقصى للصورة 3 ميغابايت.'); return; }
+    final ext = (file.extension ?? '').toLowerCase();
+    final type = switch (ext) { 'jpg' || 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', _ => '' };
+    if (type.isEmpty) { setState(() => _imageError = 'نوع الصورة غير مدعوم.'); return; }
+    setState(() { _uploadingImage = true; _imageError = null; });
+    try {
+      final uploaded = await widget.api.uploadImage(bytes: bytes, filename: file.name, contentType: type);
+      final url = uploaded['url']?.toString() ?? '';
+      if (url.isEmpty) throw const ApiServiceException('لم يُرجع الخادم رابط الصورة.');
+      if (mounted) setState(() => _imageUrl.text = url);
+    } catch (e) { if (mounted) setState(() => _imageError = e.toString()); }
+    finally { if (mounted) setState(() => _uploadingImage = false); }
+  }
 
   @override
   void initState() {
@@ -273,12 +306,25 @@ class _ContentEditorState extends State<_ContentEditor> {
     _eventAt = TextEditingController(text: item['event_at']?.toString() ?? '');
     _endAt = TextEditingController(text: item['end_at']?.toString() ?? '');
     _achievedAt = TextEditingController(text: item['achieved_at']?.toString() ?? '');
+    _publishAt = TextEditingController(text: (item['publish_at'] ?? item['event_at'] ?? '').toString());
+    _expiresAt = TextEditingController(text: item['expires_at']?.toString() ?? '');
+    _targetDepartment = TextEditingController(text: item['target_department_id']?.toString() ?? '');
+    _targetSemester = TextEditingController(text: item['target_semester_id']?.toString() ?? '');
+    _highlightsTitle = TextEditingController(text: item['highlights_title']?.toString() ?? 'أبرز المحاور');
+    final rawHighlights = item['highlights'];
+    var highlightsText = rawHighlights?.toString() ?? '';
+    if (rawHighlights is List) {
+      highlightsText = rawHighlights.join('\n');
+    } else if (rawHighlights is String && rawHighlights.trim().startsWith('[')) {
+      try { final parsed = jsonDecode(rawHighlights); if (parsed is List) highlightsText = parsed.join('\n'); } catch (_) { /* Keep the original value visible for manual correction. */ }
+    }
+    _highlights = TextEditingController(text: highlightsText);
     _status = item['status']?.toString() ?? 'draft';
   }
 
   @override
   void dispose() {
-    _title.dispose(); _imageUrl.dispose(); _body.dispose(); _category.dispose(); _publisher.dispose(); _location.dispose(); _type.dispose(); _eventAt.dispose(); _endAt.dispose(); _achievedAt.dispose();
+    _title.dispose(); _imageUrl.dispose(); _body.dispose(); _category.dispose(); _publisher.dispose(); _location.dispose(); _type.dispose(); _eventAt.dispose(); _endAt.dispose(); _achievedAt.dispose(); _publishAt.dispose(); _expiresAt.dispose(); _targetDepartment.dispose(); _targetSemester.dispose(); _highlightsTitle.dispose(); _highlights.dispose();
     super.dispose();
   }
 
@@ -289,16 +335,16 @@ class _ContentEditorState extends State<_ContentEditor> {
     final payload = <String, dynamic>{'title': title, 'status': _status};
     switch (widget.kind) {
       case _ContentKind.news:
-        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim()});
+        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'publish_at': _publishAt.text.trim(), 'expires_at': _expiresAt.text.trim()});
         break;
       case _ContentKind.events:
         payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'location': _location.text.trim(), 'event_at': _eventAt.text.trim(), 'end_at': _endAt.text.trim()});
         break;
       case _ContentKind.achievements:
-        payload.addAll({'description': body, 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _imageUrl.text.trim(), 'achieved_at': _achievedAt.text.trim()});
+        payload.addAll({'description': body, 'intro': body, 'highlights_title': _highlightsTitle.text.trim(), 'highlights': jsonEncode(_highlights.text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList()), 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _imageUrl.text.trim(), 'achieved_at': _achievedAt.text.trim()});
         break;
       case _ContentKind.announcements:
-        payload.addAll({'body': body, 'type': _type.text.trim().isEmpty ? 'general' : _type.text.trim()});
+        payload.addAll({'body': body, 'type': _type.text.trim().isEmpty ? 'general' : _type.text.trim(), 'target_department_id': _targetDepartment.text.trim().isEmpty ? null : _targetDepartment.text.trim(), 'target_semester_id': _targetSemester.text.trim().isEmpty ? null : _targetSemester.text.trim(), 'publish_at': _publishAt.text.trim().isEmpty ? null : _publishAt.text.trim(), 'expires_at': _expiresAt.text.trim().isEmpty ? null : _expiresAt.text.trim()});
         break;
     }
     setState(() => _busy = true);
@@ -315,12 +361,19 @@ class _ContentEditorState extends State<_ContentEditor> {
       if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
         const SizedBox(height: 12),
         TextFormField(controller: _imageUrl, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'رابط الصورة (اختياري)', hintText: 'https://…')),
+        const SizedBox(height: 8),
+        Align(alignment: AlignmentDirectional.centerStart, child: OutlinedButton.icon(onPressed: _uploadingImage ? null : _pickAndUploadImage, icon: _uploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file_outlined), label: Text(_uploadingImage ? 'جارٍ رفع الصورة…' : 'اختيار صورة ورفعها'))),
+        if (_imageError != null) Align(alignment: AlignmentDirectional.centerStart, child: Text(_imageError!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
       ],
       if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
         const SizedBox(height: 12),
         TextFormField(controller: _category, decoration: InputDecoration(labelText: widget.kind == _ContentKind.achievements ? 'شارة الإنجاز (اختياري)' : 'التصنيف (اختياري)')),
         const SizedBox(height: 12),
         TextFormField(controller: _publisher, decoration: const InputDecoration(labelText: 'اسم الناشر (اختياري)')),
+      ],
+      if (widget.kind == _ContentKind.news) ...[
+        const SizedBox(height: 12), TextFormField(controller: _publishAt, decoration: const InputDecoration(labelText: 'تاريخ النشر بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _expiresAt, decoration: const InputDecoration(labelText: 'تاريخ انتهاء الصلاحية بصيغة ISO (اختياري)')),
       ],
       if (widget.kind == _ContentKind.events) ...[
         const SizedBox(height: 12), TextFormField(controller: _location, decoration: const InputDecoration(labelText: 'المكان (اختياري)')),
@@ -329,13 +382,19 @@ class _ContentEditorState extends State<_ContentEditor> {
       ],
       if (widget.kind == _ContentKind.achievements) ...[
         const SizedBox(height: 12), TextFormField(controller: _achievedAt, decoration: const InputDecoration(labelText: 'تاريخ الإنجاز بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _highlightsTitle, decoration: const InputDecoration(labelText: 'عنوان أبرز المحاور')),
+        const SizedBox(height: 12), TextFormField(controller: _highlights, minLines: 2, maxLines: 6, decoration: const InputDecoration(labelText: 'أبرز المحاور (كل محور في سطر)')),
       ],
       if (widget.kind == _ContentKind.announcements) ...[
-        const SizedBox(height: 12), TextFormField(controller: _type, decoration: const InputDecoration(labelText: 'نوع الإعلان (مثل general)')),
+        const SizedBox(height: 12), TextFormField(controller: _type, decoration: const InputDecoration(labelText: 'نوع الإعلان (مثل general أو urgent)')),
+        const SizedBox(height: 12), TextFormField(controller: _targetDepartment, decoration: const InputDecoration(labelText: 'معرّف القسم المستهدف (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _targetSemester, decoration: const InputDecoration(labelText: 'معرّف الفصل المستهدف (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _publishAt, decoration: const InputDecoration(labelText: 'موعد النشر بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _expiresAt, decoration: const InputDecoration(labelText: 'موعد انتهاء الإعلان بصيغة ISO (اختياري)')),
       ],
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(value: _status, decoration: const InputDecoration(labelText: 'حالة النشر'), items: const [DropdownMenuItem(value: 'draft', child: Text('مسودة')), DropdownMenuItem(value: 'published', child: Text('منشور'))], onChanged: (v) { if (v != null) setState(() => _status = v); }),
     ])))),
-    actions: [TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: _busy ? null : _save, child: const Text('حفظ'))],
+    actions: [TextButton(onPressed: (_busy || _uploadingImage) ? null : () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: (_busy || _uploadingImage) ? null : _save, child: const Text('حفظ'))],
   );
 }

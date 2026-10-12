@@ -5,6 +5,8 @@ import 'admin_permissions.dart';
 import 'admin_section.dart';
 import 'design_system/trinex_theme.dart';
 import 'features/moderation/moderation_page.dart';
+import 'features/moderation/chat_reports_page.dart';
+import 'features/security/eino_monitor_page.dart';
 import 'features/content/content_page.dart';
 import 'features/academic/academic_page.dart';
 import 'features/users/users_page.dart';
@@ -136,6 +138,10 @@ class _AdminShellState extends State<AdminShell> {
         );
       case AdminSection.moderation:
         return ModerationPage(api: widget.api);
+      case AdminSection.chatReports:
+        return ChatReportsPage(api: widget.api);
+      case AdminSection.eino:
+        return EinoMonitorPage(api: widget.api);
       case AdminSection.notifications:
         return NotificationsPage(api: widget.api);
       case AdminSection.media:
@@ -310,6 +316,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Map<String, dynamic>? _stats;
   bool _loading = true;
   String? _error;
+  bool? _apiHealthy;
 
   @override
   void initState() {
@@ -320,8 +327,9 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _load() async {
     if (mounted) setState(() { _loading = true; _error = null; });
     try {
-      final stats = await widget.api.getDashboardOverview();
-      if (mounted) setState(() => _stats = stats);
+      final results = await Future.wait<dynamic>([widget.api.getDashboardOverview(), widget.api.checkHealth()]);
+      final stats = results[0] as Map<String, dynamic>;
+      if (mounted) setState(() { _stats = stats; _apiHealthy = results[1] as bool; });
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -352,6 +360,8 @@ class _DashboardPageState extends State<DashboardPage> {
       _QuickAction(AdminSection.moderation, 'مراجعة التفاعلات', 'التعليقات والردود', Icons.forum_outlined),
       _QuickAction(AdminSection.staff, 'إدارة الموظفين', 'الحسابات والأدوار الإدارية', Icons.manage_accounts_outlined),
       _QuickAction(AdminSection.security, 'الأمان والتدقيق', 'أحداث الدخول وسجل العمليات', Icons.shield_outlined),
+      _QuickAction(AdminSection.eino, 'مراقبة إينو', 'الأداء والأخطاء ومزودو الخدمة', Icons.monitor_heart_outlined),
+      _QuickAction(AdminSection.chatReports, 'بلاغات الدردشة', 'مراجعة البلاغات واتخاذ الإجراء', Icons.flag_outlined),
       _QuickAction(AdminSection.schedule, 'الجداول الأكاديمية', 'الجداول والمواعيد', Icons.calendar_month_outlined),
     ].where((item) => widget.visibleSections.contains(item.section)).toList();
 
@@ -384,6 +394,12 @@ class _DashboardPageState extends State<DashboardPage> {
                       Container(width: 5, height: 5, decoration: const BoxDecoration(color: TrinexColors.success, shape: BoxShape.circle)),
                       const SizedBox(width: 6),
                       Text(AdminPermissions.roleLabel(widget.session.role), style: theme.textTheme.bodySmall?.copyWith(color: TrinexColors.muted)),
+                    ]),
+                    const SizedBox(height: 8),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(_apiHealthy == true ? Icons.cloud_done_outlined : _apiHealthy == false ? Icons.cloud_off_outlined : Icons.cloud_queue_outlined, size: 16, color: _apiHealthy == true ? TrinexColors.success : _apiHealthy == false ? theme.colorScheme.error : TrinexColors.muted),
+                      const SizedBox(width: 6),
+                      Text(_apiHealthy == true ? 'واجهة API متصلة' : _apiHealthy == false ? 'واجهة API غير متاحة' : 'جارٍ فحص واجهة API', style: theme.textTheme.bodySmall?.copyWith(color: _apiHealthy == true ? TrinexColors.success : _apiHealthy == false ? theme.colorScheme.error : TrinexColors.muted)),
                     ]),
                   ],
                 ),

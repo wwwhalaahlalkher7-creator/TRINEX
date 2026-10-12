@@ -30,11 +30,13 @@ void main() {
 
     test('moderator sees moderation but not staff management', () {
       expect(AdminPermissions.canSee('moderator', AdminSection.moderation), isTrue);
+      expect(AdminPermissions.canSee('moderator', AdminSection.chatReports), isTrue);
       expect(AdminPermissions.canSee('moderator', AdminSection.notifications), isTrue);
       expect(AdminPermissions.canSee('moderator', AdminSection.media), isFalse);
       expect(AdminPermissions.canSee('moderator', AdminSection.overview), isTrue);
       expect(AdminPermissions.canSee('moderator', AdminSection.staff), isFalse);
       expect(AdminPermissions.canSee('moderator', AdminSection.security), isFalse);
+      expect(AdminPermissions.canSee('moderator', AdminSection.eino), isFalse);
     });
 
     test('unknown roles receive least-privilege navigation', () {
