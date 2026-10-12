@@ -41,7 +41,9 @@ class _AdminShellState extends State<AdminShell> {
 
   Future<void> _restoreSession() async {
     final session = await widget.sessionStore.readIncludingExpired();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _session = session;
       _checkingSession = false;
@@ -50,7 +52,9 @@ class _AdminShellState extends State<AdminShell> {
 
   Future<void> _signOut() async {
     await widget.api.logout();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() => _session = null);
   }
 
@@ -162,12 +166,6 @@ class _AdminShellState extends State<AdminShell> {
         return SettingsPage(api: widget.api);
       case AdminSection.account:
         return AccountPage(api: widget.api, session: _session!, onSignOut: _signOut);
-      default:
-        return _InfoPage(
-          title: _section.title,
-          icon: _section.icon,
-          message: 'هذه الوحدة ضمن خطة التنفيذ ولم تُفعّل وظائفها بعد. لن تُعرض بيانات تجريبية أو إجراءات شكلية؛ ستُفتح الوظائف بعد ربطها بعقد API واختبار الصلاحيات والعمليات الفعلية.',
-        );
     }
   }
 }
@@ -201,11 +199,17 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() { _busy = true; _error = null; });
     try {
       final session = await widget.api.login(_userController.text, _passwordController.text);
-      if (mounted) widget.onLoggedIn(session);
+      if (mounted) {
+        widget.onLoggedIn(session);
+      }
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+      }
     }
   }
 
@@ -325,15 +329,29 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _load() async {
-    if (mounted) setState(() { _loading = true; _error = null; });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait<dynamic>([widget.api.getDashboardOverview(), widget.api.checkHealth()]);
       final stats = results[0] as Map<String, dynamic>;
-      if (mounted) setState(() { _stats = stats; _apiHealthy = results[1] as bool; });
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _apiHealthy = results[1] as bool;
+        });
+      }
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -355,14 +373,14 @@ class _DashboardPageState extends State<DashboardPage> {
       _StatData('التعليقات الظاهرة', _number('visibleComments'), Icons.forum_outlined, const Color(0xFF5A72A7)),
     ];
     final quickActions = <_QuickAction>[
-      _QuickAction(AdminSection.content, 'إدارة المحتوى', 'الأخبار والإعلانات والفعاليات', Icons.article_outlined),
-      _QuickAction(AdminSection.materials, 'المواد الدراسية', 'المواد والملفات الأكاديمية', Icons.menu_book_outlined),
-      _QuickAction(AdminSection.moderation, 'مراجعة التفاعلات', 'التعليقات والردود', Icons.forum_outlined),
-      _QuickAction(AdminSection.staff, 'إدارة الموظفين', 'الحسابات والأدوار الإدارية', Icons.manage_accounts_outlined),
-      _QuickAction(AdminSection.security, 'الأمان والتدقيق', 'أحداث الدخول وسجل العمليات', Icons.shield_outlined),
-      _QuickAction(AdminSection.eino, 'مراقبة إينو', 'الأداء والأخطاء ومزودو الخدمة', Icons.monitor_heart_outlined),
-      _QuickAction(AdminSection.chatReports, 'بلاغات الدردشة', 'مراجعة البلاغات واتخاذ الإجراء', Icons.flag_outlined),
-      _QuickAction(AdminSection.schedule, 'الجداول الأكاديمية', 'الجداول والمواعيد', Icons.calendar_month_outlined),
+      const _QuickAction(AdminSection.content, 'إدارة المحتوى', 'الأخبار والإعلانات والفعاليات', Icons.article_outlined),
+      const _QuickAction(AdminSection.materials, 'المواد الدراسية', 'المواد والملفات الأكاديمية', Icons.menu_book_outlined),
+      const _QuickAction(AdminSection.moderation, 'مراجعة التفاعلات', 'التعليقات والردود', Icons.forum_outlined),
+      const _QuickAction(AdminSection.staff, 'إدارة الموظفين', 'الحسابات والأدوار الإدارية', Icons.manage_accounts_outlined),
+      const _QuickAction(AdminSection.security, 'الأمان والتدقيق', 'أحداث الدخول وسجل العمليات', Icons.shield_outlined),
+      const _QuickAction(AdminSection.eino, 'مراقبة إينو', 'الأداء والأخطاء ومزودو الخدمة', Icons.monitor_heart_outlined),
+      const _QuickAction(AdminSection.chatReports, 'بلاغات الدردشة', 'مراجعة البلاغات واتخاذ الإجراء', Icons.flag_outlined),
+      const _QuickAction(AdminSection.schedule, 'الجداول الأكاديمية', 'الجداول والمواعيد', Icons.calendar_month_outlined),
     ].where((item) => widget.visibleSections.contains(item.section)).toList();
 
     return RefreshIndicator(
@@ -673,34 +691,6 @@ class _CompactBottomBar extends StatelessWidget {
         icon: Icon(section.icon),
         label: section.title,
       )).toList(),
-    );
-  }
-}
-
-class _InfoPage extends StatelessWidget {
-  const _InfoPage({required this.title, required this.icon, required this.message});
-  final String title;
-  final IconData icon;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 20),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(icon, size: 36, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 16),
-              Text(message),
-            ]),
-          ),
-        ),
-      ],
     );
   }
 }
