@@ -33,6 +33,8 @@ class _TrinexAdminAppState extends State<TrinexAdminApp> {
         child: child ?? const SizedBox.shrink(),
       ),
       theme: TrinexTheme.light,
+      darkTheme: TrinexTheme.dark,
+      themeMode: ThemeMode.system,
       home: AdminShell(api: _api, sessionStore: _sessionStore),
     );
   }
