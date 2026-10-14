@@ -19,7 +19,6 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   final List<Map<String, dynamic>> _schedules = [];
   final List<Map<String, dynamic>> _departments = [];
   final List<Map<String, dynamic>> _semesters = [];
-  List<Map<String, dynamic>> _driveRuns = [];
   bool _loading = false;
   bool _syncing = false;
   String? _error;
@@ -59,7 +58,6 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
         _fetch('/admin/schedule?limit=100'),
         _fetch('/departments'),
         _fetch('/semesters'),
-        _fetch('/admin/drive/sync-status'),
       ]);
       if (!mounted) { return; }
       setState(() {
@@ -68,7 +66,6 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
         _replace(_schedules, results[2]);
         _replace(_departments, results[3]);
         _replace(_semesters, results[4]);
-        _driveRuns = results[5];
       });
     } catch (e) {
       if (mounted) { setState(() => _error = e.toString()); }
@@ -267,7 +264,6 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
     return index != null && index >= 0 && index < days.length ? days[index] : 'يوم غير محدد';
   }
 
-  String _driveStatus(dynamic value) => switch (value?.toString()) { 'success' => 'نجحت', 'failed' => 'فشلت', 'running' => 'قيد التنفيذ', _ => value?.toString() ?? 'غير معروف' };
 }
 
 class _AcademicEditor extends StatefulWidget {
@@ -394,7 +390,7 @@ class _AcademicEditorState extends State<_AcademicEditor> {
   Widget _dropdown(String label, String? value, List<Map<String, dynamic>> options, ValueChanged<String?> onChanged, String titleKey) {
     final validValue = options.any((row) => row['id']?.toString() == value) ? value : null;
     return Padding(padding: const EdgeInsets.only(bottom: 10), child: DropdownButtonFormField<String>(
-      value: validValue,
+      initialValue: validValue,
       isExpanded: true,
       decoration: InputDecoration(labelText: label),
       items: options.map((row) => DropdownMenuItem(value: row['id']?.toString(), child: Text('${row[titleKey] ?? row['name'] ?? row['id']}  •  ${row['id']}', overflow: TextOverflow.ellipsis))).toList(),

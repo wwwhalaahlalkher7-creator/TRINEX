@@ -177,7 +177,7 @@ class _ContentPageState extends State<ContentPage> {
             onChanged: (value) => setState(() => _query = value),
           )),
           SizedBox(width: 170, child: DropdownButtonFormField<String>(
-            value: _status,
+            initialValue: _status,
             decoration: const InputDecoration(labelText: 'حالة النشر', isDense: true),
             items: const [
               DropdownMenuItem(value: 'all', child: Text('كل الحالات')),
