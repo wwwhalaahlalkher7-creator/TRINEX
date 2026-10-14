@@ -57,7 +57,6 @@ class _ContentPageState extends State<ContentPage> {
       _ContentKind.news,
       _ContentKind.events,
       _ContentKind.achievements,
-      if (canNotify) _ContentKind.announcements,
     ];
     _kind = _kinds.first;
     _load();
@@ -152,25 +151,27 @@ class _ContentPageState extends State<ContentPage> {
           if (canEdit) FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('إضافة محتوى')),
         ]),
         const SizedBox(height: 20),
-        SingleChildScrollView(
+        Center(child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(children: [
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
             for (final kind in _kinds) ...[
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: 8),
-                child: ChoiceChip(
-                  avatar: Icon(kind.icon, size: 18),
-                  label: Text(kind.label),
-                  selected: _kind == kind,
-                  onSelected: (_) {
+                child: SizedBox(width: 158, height: 58, child: Material(
+                  color: _kind == kind ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(borderRadius: BorderRadius.circular(14), onTap: () {
                     setState(() { _kind = kind; _items = []; _status = 'all'; });
                     _load();
-                  },
-                ),
+                  }, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(kind.icon, size: 21, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 8), Flexible(child: Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant))),
+                  ]))),
+                )),
               ),
             ],
           ]),
-        ),
+        )),
         const SizedBox(height: 12),
         Wrap(spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
           SizedBox(width: 300, child: TextField(
@@ -220,6 +221,7 @@ class _ContentPageState extends State<ContentPage> {
                 const SizedBox(height: 8),
                 Wrap(spacing: 8, runSpacing: 6, children: [
                   Chip(label: Text((item['status'] ?? 'draft') == 'published' ? 'منشور' : 'مسودة'), visualDensity: VisualDensity.compact),
+                  if (_kind == _ContentKind.events && DateTime.tryParse(item['event_at']?.toString() ?? '')?.isAfter(DateTime.now()) == true) const Chip(label: Text('قريبًا'), visualDensity: VisualDensity.compact),
                   if ((item['category'] ?? '').toString().isNotEmpty) Chip(label: Text(item['category'].toString()), visualDensity: VisualDensity.compact),
                   if ((item['created_at'] ?? '').toString().isNotEmpty) Text(item['created_at'].toString(), style: theme.textTheme.bodySmall),
                 ]),
@@ -272,8 +274,24 @@ class _ContentEditorState extends State<_ContentEditor> {
   bool _uploadingImage = false;
   String? _imageError;
 
+  DateTime? _readDate(String value) {
+    final raw = value.trim();
+    final iso = DateTime.tryParse(raw); if (iso != null) return iso;
+    final parts = raw.split('/');
+    if (parts.length == 3) { final d = int.tryParse(parts[0]); final m = int.tryParse(parts[1]); final y = int.tryParse(parts[2]); if (d != null && m != null && y != null) return DateTime(y,m,d); }
+    return null;
+  }
+  String _isoDate(String value) { final date = _readDate(value); return date == null ? '' : DateTime(date.year,date.month,date.day).toIso8601String(); }
+  String _displayDate(String value) { final date = _readDate(value); return date == null ? '' : '${date.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year}'; }
+  Future<void> _pickDate(TextEditingController controller) async {
+    final now = DateTime.now();
+    final current = _readDate(controller.text);
+    final picked = await showDatePicker(context: context, initialDate: current ?? now, firstDate: DateTime(2000), lastDate: DateTime(2100), helpText: 'اختر التاريخ');
+    if (picked != null) controller.text = '${picked.day.toString().padLeft(2,'0')}/${picked.month.toString().padLeft(2,'0')}/${picked.year}';
+  }
+
   Future<void> _pickAndUploadImage() async {
-    final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'], withData: true);
+    final picked = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
     if (picked == null || picked.files.isEmpty || !mounted) return;
     final file = picked.files.single;
     final bytes = file.bytes;
@@ -308,6 +326,7 @@ class _ContentEditorState extends State<_ContentEditor> {
     _achievedAt = TextEditingController(text: item['achieved_at']?.toString() ?? '');
     _publishAt = TextEditingController(text: (item['publish_at'] ?? item['event_at'] ?? '').toString());
     _expiresAt = TextEditingController(text: item['expires_at']?.toString() ?? '');
+    for (final controller in [_publishAt, _eventAt, _endAt, _achievedAt, _expiresAt]) { final formatted = _displayDate(controller.text); if (formatted.isNotEmpty) controller.text = formatted; }
     _targetDepartment = TextEditingController(text: item['target_department_id']?.toString() ?? '');
     _targetSemester = TextEditingController(text: item['target_semester_id']?.toString() ?? '');
     _highlightsTitle = TextEditingController(text: item['highlights_title']?.toString() ?? 'أبرز المحاور');
@@ -332,16 +351,20 @@ class _ContentEditorState extends State<_ContentEditor> {
     if (!_formKey.currentState!.validate()) return;
     final title = _title.text.trim();
     final body = _body.text.trim();
-    final payload = <String, dynamic>{'title': title, 'status': _status};
+    var dateText = switch (widget.kind) { _ContentKind.news => _isoDate(_publishAt.text), _ContentKind.events => _isoDate(_eventAt.text), _ContentKind.achievements => _isoDate(_achievedAt.text), _ContentKind.announcements => _isoDate(_publishAt.text) };
+    if (dateText.isEmpty) { dateText = DateTime.now().toIso8601String(); if (widget.kind == _ContentKind.news) _publishAt.text = _displayDate(dateText); if (widget.kind == _ContentKind.events) _eventAt.text = _displayDate(dateText); if (widget.kind == _ContentKind.achievements) _achievedAt.text = _displayDate(dateText); }
+    final publishDate = DateTime.tryParse(dateText);
+    final isFuture = publishDate != null && DateTime(publishDate.year,publishDate.month,publishDate.day).isAfter(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day));
+    final payload = <String, dynamic>{'title': title, 'status': isFuture && widget.kind != _ContentKind.events ? 'draft' : 'published'};
     switch (widget.kind) {
       case _ContentKind.news:
-        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'publish_at': _publishAt.text.trim(), 'expires_at': _expiresAt.text.trim()});
+        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'publish_at': _isoDate(_publishAt.text), 'expires_at': _isoDate(_expiresAt.text)});
         break;
       case _ContentKind.events:
-        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'location': _location.text.trim(), 'event_at': _eventAt.text.trim(), 'end_at': _endAt.text.trim()});
+        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'location': _location.text.trim(), 'event_at': _isoDate(_eventAt.text), 'end_at': _isoDate(_endAt.text)});
         break;
       case _ContentKind.achievements:
-        payload.addAll({'description': body, 'intro': body, 'highlights_title': _highlightsTitle.text.trim(), 'highlights': jsonEncode(_highlights.text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList()), 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _imageUrl.text.trim(), 'achieved_at': _achievedAt.text.trim()});
+        payload.addAll({'description': body, 'intro': body, 'highlights_title': _highlightsTitle.text.trim(), 'highlights': jsonEncode(_highlights.text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList()), 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _imageUrl.text.trim(), 'achieved_at': _isoDate(_achievedAt.text)});
         break;
       case _ContentKind.announcements:
         payload.addAll({'body': body, 'type': _type.text.trim().isEmpty ? 'general' : _type.text.trim(), 'target_department_id': _targetDepartment.text.trim().isEmpty ? null : _targetDepartment.text.trim(), 'target_semester_id': _targetSemester.text.trim().isEmpty ? null : _targetSemester.text.trim(), 'publish_at': _publishAt.text.trim().isEmpty ? null : _publishAt.text.trim(), 'expires_at': _expiresAt.text.trim().isEmpty ? null : _expiresAt.text.trim()});
@@ -360,40 +383,32 @@ class _ContentEditorState extends State<_ContentEditor> {
       TextFormField(controller: _body, minLines: 3, maxLines: 7, decoration: InputDecoration(labelText: widget.kind == _ContentKind.achievements ? 'الوصف' : 'المحتوى'), validator: (v) => v == null || v.trim().isEmpty ? 'المحتوى مطلوب' : null),
       if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
         const SizedBox(height: 12),
-        TextFormField(controller: _imageUrl, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'رابط الصورة (اختياري)', hintText: 'https://…')),
-        const SizedBox(height: 8),
-        Align(alignment: AlignmentDirectional.centerStart, child: OutlinedButton.icon(onPressed: _uploadingImage ? null : _pickAndUploadImage, icon: _uploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file_outlined), label: Text(_uploadingImage ? 'جارٍ رفع الصورة…' : 'اختيار صورة ورفعها'))),
-        if (_imageError != null) Align(alignment: AlignmentDirectional.centerStart, child: Text(_imageError!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-      ],
-      if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
-        const SizedBox(height: 12),
         TextFormField(controller: _category, decoration: InputDecoration(labelText: widget.kind == _ContentKind.achievements ? 'شارة الإنجاز (اختياري)' : 'التصنيف (اختياري)')),
         const SizedBox(height: 12),
         TextFormField(controller: _publisher, decoration: const InputDecoration(labelText: 'اسم الناشر (اختياري)')),
       ],
       if (widget.kind == _ContentKind.news) ...[
-        const SizedBox(height: 12), TextFormField(controller: _publishAt, decoration: const InputDecoration(labelText: 'تاريخ النشر بصيغة ISO (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _expiresAt, decoration: const InputDecoration(labelText: 'تاريخ انتهاء الصلاحية بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _publishAt, readOnly: true, onTap: () => _pickDate(_publishAt), decoration: const InputDecoration(labelText: 'تاريخ النشر (اختياري)', suffixIcon: Icon(Icons.calendar_month))),
+        const SizedBox(height: 12), TextFormField(controller: _expiresAt, readOnly: true, onTap: () => _pickDate(_expiresAt), decoration: const InputDecoration(labelText: 'تاريخ انتهاء الصلاحية (اختياري)', suffixIcon: Icon(Icons.calendar_month))),
       ],
       if (widget.kind == _ContentKind.events) ...[
         const SizedBox(height: 12), TextFormField(controller: _location, decoration: const InputDecoration(labelText: 'المكان (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _eventAt, decoration: const InputDecoration(labelText: 'موعد الفعالية بصيغة ISO (اختياري، مثل 2026-11-05T10:00:00Z)')),
-        const SizedBox(height: 12), TextFormField(controller: _endAt, decoration: const InputDecoration(labelText: 'نهاية الفعالية بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _eventAt, readOnly: true, onTap: () => _pickDate(_eventAt), decoration: const InputDecoration(labelText: 'تاريخ الفعالية (اختياري)', suffixIcon: Icon(Icons.calendar_month))),
+        const SizedBox(height: 12), TextFormField(controller: _endAt, readOnly: true, onTap: () => _pickDate(_endAt), decoration: const InputDecoration(labelText: 'تاريخ نهاية الفعالية (اختياري)', suffixIcon: Icon(Icons.calendar_month))),
       ],
       if (widget.kind == _ContentKind.achievements) ...[
-        const SizedBox(height: 12), TextFormField(controller: _achievedAt, decoration: const InputDecoration(labelText: 'تاريخ الإنجاز بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), TextFormField(controller: _achievedAt, readOnly: true, onTap: () => _pickDate(_achievedAt), decoration: const InputDecoration(labelText: 'تاريخ الإنجاز (اختياري)', suffixIcon: Icon(Icons.calendar_month))),
         const SizedBox(height: 12), TextFormField(controller: _highlightsTitle, decoration: const InputDecoration(labelText: 'عنوان أبرز المحاور')),
         const SizedBox(height: 12), TextFormField(controller: _highlights, minLines: 2, maxLines: 6, decoration: const InputDecoration(labelText: 'أبرز المحاور (كل محور في سطر)')),
       ],
-      if (widget.kind == _ContentKind.announcements) ...[
-        const SizedBox(height: 12), TextFormField(controller: _type, decoration: const InputDecoration(labelText: 'نوع الإعلان (مثل general أو urgent)')),
-        const SizedBox(height: 12), TextFormField(controller: _targetDepartment, decoration: const InputDecoration(labelText: 'معرّف القسم المستهدف (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _targetSemester, decoration: const InputDecoration(labelText: 'معرّف الفصل المستهدف (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _publishAt, decoration: const InputDecoration(labelText: 'موعد النشر بصيغة ISO (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _expiresAt, decoration: const InputDecoration(labelText: 'موعد انتهاء الإعلان بصيغة ISO (اختياري)')),
+      if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
+        const Divider(height: 28),
+        Align(alignment: AlignmentDirectional.centerStart, child: Text('الصورة', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700))),
+        const SizedBox(height: 8),
+        if (_imageUrl.text.trim().isNotEmpty) ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_imageUrl.text, height: 150, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox(height: 70, child: Center(child: Text('تعذر عرض معاينة الصورة'))))),
+        Align(alignment: AlignmentDirectional.centerStart, child: OutlinedButton.icon(onPressed: _uploadingImage ? null : _pickAndUploadImage, icon: _uploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_library_outlined), label: Text(_uploadingImage ? 'جارٍ رفع الصورة…' : 'اختيار صورة من المعرض'))),
+        if (_imageError != null) Align(alignment: AlignmentDirectional.centerStart, child: Text(_imageError!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
       ],
-      const SizedBox(height: 12),
-      DropdownButtonFormField<String>(value: _status, decoration: const InputDecoration(labelText: 'حالة النشر'), items: const [DropdownMenuItem(value: 'draft', child: Text('مسودة')), DropdownMenuItem(value: 'published', child: Text('منشور'))], onChanged: (v) { if (v != null) setState(() => _status = v); }),
     ])))),
     actions: [TextButton(onPressed: (_busy || _uploadingImage) ? null : () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: (_busy || _uploadingImage) ? null : _save, child: const Text('حفظ'))],
   );

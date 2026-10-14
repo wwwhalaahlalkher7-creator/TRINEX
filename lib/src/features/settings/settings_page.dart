@@ -75,11 +75,21 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!_loading && _error == null && _items.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(20), child: Text('لا توجد إعدادات مسجلة.'))),
     for (final item in _items) Card(child: ListTile(
       leading: const CircleAvatar(child: Icon(Icons.tune_outlined)),
-      title: Text(item['key']?.toString() ?? 'مفتاح غير معروف', textDirection: TextDirection.ltr),
-      subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Text(_compactValue(item['value_json']), maxLines: 3, overflow: TextOverflow.ellipsis, textDirection: TextDirection.ltr)),
+      title: Text(_settingLabel(item['key']?.toString() ?? 'مفتاح غير معروف'), style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('المفتاح التقني: ${item['key'] ?? '—'}', textDirection: TextDirection.ltr, style: Theme.of(context).textTheme.bodySmall), const SizedBox(height: 4), Text(_compactValue(item['value_json']), maxLines: 3, overflow: TextOverflow.ellipsis, textDirection: TextDirection.ltr)])),
       trailing: IconButton(tooltip: 'تعديل', onPressed: () => _edit(item), icon: const Icon(Icons.edit_outlined)),
     )),
   ]));
+
+  String _settingLabel(String key) => switch (key) {
+    'Logo' => 'شعار النظام',
+    'public.app_name' => 'اسم التطبيق العام',
+    'public.app_description' => 'وصف التطبيق',
+    'public.support_email' => 'بريد الدعم الفني',
+    'public.maintenance_mode' => 'وضع الصيانة',
+    'public.maintenance_message' => 'رسالة الصيانة',
+    _ => key.startsWith('public.') ? key.substring(7).replaceAll('_', ' ') : key,
+  };
 
   String _compactValue(dynamic value) {
     final parsed = _parseStored(value);

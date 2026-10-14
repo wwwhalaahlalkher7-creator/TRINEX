@@ -444,7 +444,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ]),
               ),
             LayoutBuilder(builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1250 ? 4 : constraints.maxWidth >= 760 ? 2 : 1;
+              final columns = constraints.maxWidth >= 1250 ? 4 : constraints.maxWidth >= 480 ? 2 : 1;
               final width = (constraints.maxWidth - (columns - 1) * 14) / columns;
               return Wrap(
                 spacing: 14,
@@ -463,7 +463,7 @@ class _DashboardPageState extends State<DashboardPage> {
             const _EmptyQuickActions()
           else
             LayoutBuilder(builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1100 ? 3 : constraints.maxWidth >= 650 ? 2 : 1;
+              final columns = constraints.maxWidth >= 1100 ? 3 : constraints.maxWidth >= 480 ? 2 : 1;
               final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
               return Wrap(
                 spacing: 12,

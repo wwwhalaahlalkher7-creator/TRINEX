@@ -27,7 +27,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this, initialIndex: widget.initialTab.clamp(0, 3).toInt());
+    _tabs = TabController(length: 2, vsync: this, initialIndex: widget.initialTab == 2 ? 1 : 0);
     _tabs.addListener(() { if (!_tabs.indexIsChanging && mounted) setState(() {}); });
     _loadAll();
   }
@@ -84,17 +84,15 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   List<Map<String, dynamic>> get _activeRows {
     final rows = switch (_tabs.index) {
       0 => _subjects,
-      1 => _materials,
-      2 => _schedules,
-      _ => _driveRuns,
+      _ => _schedules,
     };
     final q = _search.text.trim().toLowerCase();
     if (q.isEmpty) return rows;
     return rows.where((row) => row.values.any((value) => value.toString().toLowerCase().contains(q))).toList();
   }
 
-  String get _resource => switch (_tabs.index) { 0 => 'subjects', 1 => 'materials', 2 => 'schedule', _ => 'drive' };
-  String get _title => switch (_tabs.index) { 0 => 'المقررات', 1 => 'المواد الدراسية', 2 => 'الجداول الأكاديمية', _ => 'مزامنة Google Drive' };
+  String get _resource => _tabs.index == 0 ? 'subjects' : 'schedule';
+  String get _title => _tabs.index == 0 ? 'المواد الدراسية' : 'الجداول الأكاديمية';
 
   Future<void> _syncDrive() async {
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
@@ -121,7 +119,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   }
 
   Future<void> _edit([Map<String, dynamic>? item]) async {
-    if (_tabs.index == 3) return;
+    if (_tabs.index > 1) return;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _AcademicEditor(
@@ -152,10 +150,10 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
     if (id.isEmpty) return;
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
       title: const Text('تأكيد الحذف'),
-      content: Text(_tabs.index == 1 && (item['drive_file_id'] ?? '').toString().isNotEmpty
+      content: Text(_tabs.index == 0 && (item['drive_file_id'] ?? '').toString().isNotEmpty
           ? 'هل تريد حذف «${item['title'] ?? item['id']}»؟ قد يحذف الخادم ملف Google Drive المرتبط نهائيًا إذا كانت إعدادات التكامل تسمح بذلك.'
           : _tabs.index == 0
-              ? 'هل تريد حذف المقرر «${item['name_ar'] ?? item['id']}»؟ قد يحذف الخادم المواد والجداول المرتبطة به، وقد يشمل ذلك ملفات Drive المرتبطة.'
+              ? 'هل تريد حذف المادة «${item['name_ar'] ?? item['id']}»؟ قد يحذف الخادم المواد والجداول المرتبطة به، وقد يشمل ذلك ملفات Drive المرتبطة.'
               : 'هل تريد حذف «${item['title'] ?? item['name_ar'] ?? item['id']}»؟ قد يؤثر ذلك على البيانات المرتبطة.'),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف'))],
     ));
@@ -180,36 +178,73 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
           IconButton(tooltip: 'تحديث البيانات', onPressed: _loading ? null : _loadAll, icon: const Icon(Icons.refresh)),
         ]),
         const SizedBox(height: 18),
-        Card(clipBehavior: Clip.antiAlias, child: TabBar(controller: _tabs, isScrollable: true, tabs: const [Tab(icon: Icon(Icons.class_outlined), text: 'المقررات'), Tab(icon: Icon(Icons.menu_book_outlined), text: 'المواد'), Tab(icon: Icon(Icons.calendar_month_outlined), text: 'الجداول'), Tab(icon: Icon(Icons.cloud_sync_outlined), text: 'مزامنة Drive')])),
+        Card(clipBehavior: Clip.antiAlias, child: TabBar(controller: _tabs, isScrollable: false, tabs: const [Tab(icon: Icon(Icons.menu_book_outlined), text: 'المواد الدراسية'), Tab(icon: Icon(Icons.calendar_month_outlined), text: 'الجداول الأكاديمية')])),
         const SizedBox(height: 14),
-        if (_tabs.index != 3) TextField(controller: _search, onChanged: (_) => setState(() {}), decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'ابحث في $_title...', suffixIcon: _search.text.isEmpty ? null : IconButton(onPressed: () { _search.clear(); setState(() {}); }, icon: const Icon(Icons.close)))),
-        if (_tabs.index != 3) const SizedBox(height: 12),
-        if (_tabs.index != 3) Align(alignment: AlignmentDirectional.centerStart, child: FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: Text('إضافة ${_tabs.index == 0 ? 'مقرر' : _tabs.index == 1 ? 'مادة' : 'موعد'}'))),
-        if (_tabs.index != 3) const SizedBox(height: 12),
+        if (_tabs.index < 2) TextField(controller: _search, onChanged: (_) => setState(() {}), decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'ابحث في $_title...', suffixIcon: _search.text.isEmpty ? null : IconButton(onPressed: () { _search.clear(); setState(() {}); }, icon: const Icon(Icons.close)))),
+        if (_tabs.index < 2) const SizedBox(height: 12),
+        if (_tabs.index < 2) Row(mainAxisAlignment: MainAxisAlignment.center, children: [if (_tabs.index == 0) OutlinedButton.icon(onPressed: _syncing ? null : _syncDrive, icon: const Icon(Icons.cloud_sync_outlined), label: Text(_syncing ? 'جارٍ المزامنة…' : 'مزامنة Google Drive')), const SizedBox(width: 10), FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: Text(_tabs.index == 0 ? 'إضافة مادة' : 'إضافة موعد'))]),
+        if (_tabs.index < 2) const SizedBox(height: 12),
         if (_loading && _activeRows.isEmpty) const Expanded(child: Center(child: CircularProgressIndicator()))
         else if (_error != null && _activeRows.isEmpty) Expanded(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.cloud_off_outlined, size: 42), const SizedBox(height: 12), Text(_error!, textAlign: TextAlign.center), const SizedBox(height: 12), OutlinedButton.icon(onPressed: _loadAll, icon: const Icon(Icons.refresh), label: const Text('إعادة المحاولة'))])))
-        else if (_tabs.index == 3) Expanded(child: _buildDrive(theme))
-        else Expanded(child: _activeRows.isEmpty ? Center(child: Text(_loading ? 'جارٍ التحميل...' : 'لا توجد سجلات مطابقة.')) : ListView.separated(itemCount: _activeRows.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, index) => _rowCard(_activeRows[index], theme))),
+        else Expanded(child: _activeRows.isEmpty ? Center(child: Text(_loading ? 'جارٍ التحميل...' : (_tabs.index == 0 ? 'لا توجد مواد. أضف مادة جديدة أو استخدم المزامنة.' : 'لا توجد جداول مطابقة.'))) : ListView.separated(itemCount: _activeRows.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, index) => _rowCard(_activeRows[index], theme))),
       ]),
     ));
   }
 
   Widget _rowCard(Map<String, dynamic> row, ThemeData theme) {
-    final title = (row['title'] ?? row['name_ar'] ?? row['subject_name'] ?? 'سجل ${row['id'] ?? ''}').toString();
+    final title = (row['name_ar'] ?? row['title'] ?? row['subject_name'] ?? 'سجل ${row['id'] ?? ''}').toString();
     final subtitle = switch (_tabs.index) {
-      0 => 'القسم: ${row['department_id'] ?? '—'}  •  الفصل: ${row['semester_id'] ?? '—'}  •  الرمز: ${row['code'] ?? '—'}',
-      1 => 'المقرر: ${_subjectLabel(row['subject_id'])}  •  المصدر: ${row['source'] ?? 'يدوي'}',
-      _ => '${_dayLabel(row['day_of_week'])}  •  ${row['start_time'] ?? '--:--'} – ${row['end_time'] ?? '--:--'}  •  القاعة: ${row['room'] ?? '—'}',
+      0 => 'القسم: ${_lookupName(_departments, row['department_id'])}  •  الفصل: ${_lookupName(_semesters, row['semester_id'])}  •  الشيتات: ${_materials.where((m) => m['subject_id']?.toString() == row['id']?.toString()).length}',
+      _ => '${_dayLabel(row['day_of_week'])}  •  ${_displayApiTime(row['start_time'])} – ${_displayApiTime(row['end_time'])}  •  القاعة: ${row['room'] ?? '—'}',
     };
     return Card(child: ListTile(
-      leading: CircleAvatar(child: Icon(_tabs.index == 0 ? Icons.class_outlined : _tabs.index == 1 ? Icons.menu_book_outlined : Icons.event_note_outlined)),
+      leading: CircleAvatar(child: Icon(_tabs.index == 0 ? Icons.menu_book_outlined : Icons.event_note_outlined)),
       title: Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
       subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Text(subtitle)),
       isThreeLine: true,
       trailing: PopupMenuButton<String>(onSelected: (action) { if (action == 'edit') _edit(row); if (action == 'delete') _delete(row); }, itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('تعديل')), PopupMenuItem(value: 'delete', child: Text('حذف'))]),
-      onTap: () => _edit(row),
+      onTap: () { if (_tabs.index == 0) _openSubject(row); else _edit(row); },
       dense: false,
     ));
+  }
+
+  Future<void> _openSubject(Map<String, dynamic> subject) async {
+    final id = subject['id']?.toString();
+    if (id == null) return;
+    await showDialog<void>(context: context, builder: (dialogContext) {
+      final sheets = _materials.where((m) => m['subject_id']?.toString() == id).toList();
+      return AlertDialog(
+        title: Text('شيتات ${subject['name_ar'] ?? subject['name_en'] ?? 'المادة'}'),
+        content: SizedBox(width: 560, child: sheets.isEmpty
+          ? const Center(child: Padding(padding: EdgeInsets.all(18), child: Text('لا توجد شيتات مضافة لهذه المادة بعد.')))
+          : ListView(shrinkWrap: true, children: sheets.map((sheet) => ListTile(
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              title: Text('${sheet['title'] ?? 'شيت دون عنوان'}'),
+              subtitle: Text((sheet['source']?.toString() == 'drive') ? 'المصدر: Google Drive' : 'ملف مضاف يدويًا'),
+              trailing: PopupMenuButton<String>(onSelected: (v) { Navigator.pop(dialogContext); if (v == 'edit') _editMaterial(sheet); if (v == 'delete') _deleteMaterial(sheet); }, itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('تعديل الشيت')), PopupMenuItem(value: 'delete', child: Text('حذف الشيت'))]),
+            )).toList())),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إغلاق')), FilledButton.icon(onPressed: () { Navigator.pop(dialogContext); _addSheet(subject); }, icon: const Icon(Icons.add), label: const Text('إضافة شيت PDF'))],
+      );
+    });
+  }
+
+  Future<void> _addSheet(Map<String, dynamic> subject) async {
+    final result = await showDialog<Map<String, dynamic>>(context: context, builder: (_) => _AcademicEditor(resource: 'materials', initial: {'subject_id': subject['id']}, subjects: _subjects, departments: _departments, semesters: _semesters));
+    if (result == null || !mounted) return;
+    try { await widget.api.post('/admin/materials', body: result); _message('تمت إضافة الشيت.'); await _loadAll(); }
+    catch (e) { _message('تعذرت إضافة الشيت: $e', error: true); }
+  }
+
+  Future<void> _editMaterial(Map<String, dynamic> sheet) async {
+    final result = await showDialog<Map<String, dynamic>>(context: context, builder: (_) => _AcademicEditor(resource: 'materials', initial: sheet, subjects: _subjects, departments: _departments, semesters: _semesters));
+    if (result == null || !mounted) return;
+    try { await widget.api.patch('/admin/materials/${sheet['id']}', body: result); _message('تم تحديث الشيت.'); await _loadAll(); }
+    catch (e) { _message('تعذر تحديث الشيت: $e', error: true); }
+  }
+
+  Future<void> _deleteMaterial(Map<String, dynamic> sheet) async {
+    try { await widget.api.delete('/admin/materials/${sheet['id']}'); _message('تم حذف الشيت.'); await _loadAll(); }
+    catch (e) { _message('تعذر حذف الشيت: $e', error: true); }
   }
 
   Widget _buildDrive(ThemeData theme) => ListView(children: [
@@ -232,6 +267,11 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
     ))),
   ]);
 
+  String _lookupName(List<Map<String, dynamic>> rows, dynamic id) {
+    for (final row in rows) { if (row['id']?.toString() == id?.toString()) return '${row['name_ar'] ?? row['name'] ?? row['title'] ?? id}'; }
+    return id?.toString() ?? 'غير محدد';
+  }
+
   String _subjectLabel(dynamic id) {
     for (final subject in _subjects) {
       if (subject['id']?.toString() == id?.toString()) {
@@ -239,6 +279,15 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
       }
     }
     return id?.toString() ?? '—';
+  }
+
+  String _displayApiTime(dynamic value) {
+    final raw = value?.toString() ?? ''; final parts = raw.split(':');
+    if (parts.length < 2) return raw.isEmpty ? 'غير محدد' : raw;
+    final hour = int.tryParse(parts[0]); final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return raw;
+    final h = hour % 12 == 0 ? 12 : hour % 12;
+    return '$h:${minute.toString().padLeft(2, '0')} ${hour < 12 ? 'صباحًا' : 'مساءً'}';
   }
 
   String _dayLabel(dynamic value) {
@@ -270,6 +319,8 @@ class _AcademicEditorState extends State<_AcademicEditor> {
   late int _day;
   late bool _active;
   late bool _pinned;
+  TimeOfDay? _startPicker;
+  TimeOfDay? _endPicker;
   bool get _isSubject => widget.resource == 'subjects';
   bool get _isMaterial => widget.resource == 'materials';
 
@@ -289,25 +340,53 @@ class _AcademicEditorState extends State<_AcademicEditor> {
     _day = int.tryParse(item['day_of_week']?.toString() ?? '') ?? 0;
     _active = item['active'] == null ? true : (item['active'] == 1 || item['active'] == true);
     _pinned = item['pinned'] == 1 || item['pinned'] == true;
+    if (!_isSubject && !_isMaterial) {
+      _startPicker = _parseTime(item['start_time']?.toString());
+      _endPicker = _parseTime(item['end_time']?.toString());
+      if (_startPicker != null) _controllers['start_time']!.text = _displayTime(_startPicker!);
+      if (_endPicker != null) _controllers['end_time']!.text = _displayTime(_endPicker!);
+    }
   }
 
   @override
   void dispose() { for (final controller in _controllers.values) { controller.dispose(); } super.dispose(); }
 
+  TimeOfDay? _parseTime(String? value) {
+    final parts = (value ?? '').split(':');
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]); final m = int.tryParse(parts[1]);
+    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+  String _displayTime(TimeOfDay time) { final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod; final m = time.minute.toString().padLeft(2, '0'); return '$h:${m} ${time.period == DayPeriod.am ? 'صباحًا' : 'مساءً'}'; }
+  String _apiTime(TimeOfDay time) => '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  Future<void> _pickScheduleTime(String key) async {
+    final current = key == 'start_time' ? _startPicker : _endPicker;
+    final picked = await showTimePicker(context: context, initialTime: current ?? TimeOfDay.now(), helpText: key == 'start_time' ? 'اختر وقت البداية' : 'اختر وقت النهاية', builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false), child: child!));
+    if (picked == null || !mounted) return;
+    setState(() { if (key == 'start_time') _startPicker = picked; else _endPicker = picked; _controllers[key]!.text = _displayTime(picked); });
+  }
+
   String _label(String key) => switch (key) {
-    'name_ar' => 'اسم المقرر بالعربية', 'name_en' => 'اسم المقرر بالإنجليزية (اختياري)', 'code' => 'رمز المقرر',
-    'sort_order' => 'ترتيب العرض', 'title' => 'عنوان المادة', 'description' => 'وصف المادة', 'drive_file_id' => 'معرّف ملف Drive (اختياري)',
-    'drive_url' => 'رابط الملف (اختياري)', 'mime_type' => 'نوع الملف (اختياري)', 'start_time' => 'وقت البداية (HH:MM)',
-    'end_time' => 'وقت النهاية (HH:MM)', 'room' => 'القاعة', 'lecturer' => 'المحاضر', _ => key,
+    'name_ar' => 'اسم المادة بالعربية', 'name_en' => 'اسم المقرر بالإنجليزية (اختياري)', 'code' => 'رمز المقرر',
+    'sort_order' => 'ترتيب العرض', 'title' => 'عنوان الشيت / ملف PDF', 'description' => 'وصف المادة', 'drive_file_id' => 'معرّف ملف PDF في Drive (اختياري)',
+    'drive_url' => 'رابط ملف PDF (اختياري)', 'mime_type' => 'نوع الملف (اختياري)', 'start_time' => 'وقت البداية' ,
+    'end_time' => 'وقت النهاية' , 'room' => 'القاعة', 'lecturer' => 'المحاضر', _ => key,
   };
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
-    final result = <String, dynamic>{'active': _active ? 1 : 0};
+    final result = <String, dynamic>{};
+    if (widget.initial != null) result['active'] = _active ? 1 : 0;
     for (final entry in _controllers.entries) {
       final value = entry.value.text.trim();
       if (value.isEmpty) continue;
       if (entry.key == 'sort_order') { result[entry.key] = int.tryParse(value) ?? 0; } else { result[entry.key] = value; }
+    }
+    if (!_isSubject && !_isMaterial) {
+      if (_startPicker == null || _endPicker == null) { _showError('اختر وقت البداية والنهاية من أداة الوقت.'); return; }
+      result['start_time'] = _apiTime(_startPicker!);
+      result['end_time'] = _apiTime(_endPicker!);
     }
     if (_isSubject) {
       if (_departmentId == null || _semesterId == null) { _showError('اختر القسم والفصل الدراسي.'); return; }
@@ -334,9 +413,9 @@ class _AcademicEditorState extends State<_AcademicEditor> {
       if (_isSubject || !_isMaterial) _dropdown('الفصل الدراسي', _semesterId, widget.semesters, (v) => setState(() { _semesterId = v; _subjectId = null; }), 'name_ar'),
       if (_isMaterial || !_isSubject) _dropdown('المقرر', _subjectId, widget.subjects.where((s) => (_departmentId == null || s['department_id']?.toString() == _departmentId) && (_semesterId == null || s['semester_id']?.toString() == _semesterId)).toList(), (v) => setState(() => _subjectId = v), 'name_ar'),
       if (!_isSubject && !_isMaterial) DropdownButtonFormField<int>(value: _day, decoration: const InputDecoration(labelText: 'اليوم'), items: const [DropdownMenuItem(value: 0, child: Text('الأحد')), DropdownMenuItem(value: 1, child: Text('الاثنين')), DropdownMenuItem(value: 2, child: Text('الثلاثاء')), DropdownMenuItem(value: 3, child: Text('الأربعاء')), DropdownMenuItem(value: 4, child: Text('الخميس')), DropdownMenuItem(value: 5, child: Text('الجمعة')), DropdownMenuItem(value: 6, child: Text('السبت'))], onChanged: (v) => setState(() => _day = v ?? 0)),
-      ..._controllers.entries.map((entry) => Padding(padding: const EdgeInsets.only(top: 10), child: TextFormField(controller: entry.value, decoration: InputDecoration(labelText: _label(entry.key)), keyboardType: entry.key == 'sort_order' ? TextInputType.number : TextInputType.text, validator: (v) => entry.key == 'title' && (v == null || v.trim().isEmpty) ? 'العنوان مطلوب' : entry.key == 'name_ar' && (v == null || v.trim().isEmpty) ? 'اسم المقرر مطلوب' : null))),
+      ..._controllers.entries.map((entry) => Padding(padding: const EdgeInsets.only(top: 10), child: TextFormField(controller: entry.value, readOnly: !_isSubject && !_isMaterial && (entry.key == 'start_time' || entry.key == 'end_time'), onTap: !_isSubject && !_isMaterial && (entry.key == 'start_time' || entry.key == 'end_time') ? () => _pickScheduleTime(entry.key) : null, decoration: InputDecoration(labelText: _label(entry.key), suffixIcon: !_isSubject && !_isMaterial && (entry.key == 'start_time' || entry.key == 'end_time') ? const Icon(Icons.access_time) : null), keyboardType: entry.key == 'sort_order' ? TextInputType.number : TextInputType.text, validator: (v) => entry.key == 'title' && (v == null || v.trim().isEmpty) ? 'العنوان مطلوب' : entry.key == 'name_ar' && (v == null || v.trim().isEmpty) ? 'اسم المادة مطلوب' : null))),
       if (_isMaterial) CheckboxListTile(value: _pinned, onChanged: (v) => setState(() => _pinned = v ?? false), contentPadding: EdgeInsets.zero, title: const Text('تثبيت المادة في الأعلى')),
-      SwitchListTile(value: _active, onChanged: (v) => setState(() => _active = v), contentPadding: EdgeInsets.zero, title: const Text('نشط')),
+      if (widget.initial != null) SwitchListTile(value: _active, onChanged: (v) => setState(() => _active = v), contentPadding: EdgeInsets.zero, title: const Text('نشط')),
     ])))),
     actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: _save, child: const Text('حفظ'))],
   );

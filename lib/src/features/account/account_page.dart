@@ -21,9 +21,37 @@ class _AccountPageState extends State<AccountPage> {
   bool _busy = false;
   bool _hideCurrent = true;
   bool _hideNext = true;
+  late String _displayName;
+  String _email = '';
+  @override
+  void initState() { super.initState(); _displayName = widget.session.displayName; _loadProfile(); }
+  Future<void> _loadProfile() async { try { final r = await widget.api.get('/auth/staff/profile'); final data = r['data'] is Map ? Map<String,dynamic>.from(r['data']) : r; if (mounted) setState(() { _displayName = (data['displayName'] ?? data['display_name'] ?? _displayName).toString(); _email = (data['email'] ?? '').toString(); }); } catch (_) { /* Profile endpoint can be added with the backend follow-up. */ } }
 
   @override
   void dispose() { _current.dispose(); _next.dispose(); _confirm.dispose(); super.dispose(); }
+
+  Future<void> _editProfile() async {
+    final name = TextEditingController(text: _displayName);
+    final email = TextEditingController(text: _email);
+    final form = GlobalKey<FormState>();
+    final data = await showDialog<Map<String,String>>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('تعديل بيانات المشرف'),
+      content: SizedBox(width: 440, child: Form(key: form, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextFormField(controller: name, decoration: const InputDecoration(labelText: 'اسم المشرف *'), validator: (v) => v == null || v.trim().isEmpty ? 'الاسم مطلوب' : null),
+        const SizedBox(height: 12),
+        TextFormField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), validator: (v) => v != null && v.trim().isNotEmpty && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim()) ? 'البريد الإلكتروني غير صالح' : null),
+      ]))),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () { if (form.currentState!.validate()) Navigator.pop(dialogContext, {'displayName': name.text.trim(), 'email': email.text.trim()}); }, child: const Text('حفظ'))],
+    ));
+    name.dispose(); email.dispose();
+    if (data == null || !mounted) return;
+    try {
+      await widget.api.patch('/auth/staff/profile', body: data);
+      if (!mounted) return;
+      setState(() { _displayName = data['displayName']!; _email = data['email']!; });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات المشرف.')));
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث البيانات: $e'))); }
+  }
 
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
@@ -47,14 +75,32 @@ class _AccountPageState extends State<AccountPage> {
     const SizedBox(height: 6),
     const Text('بيانات الجلسة الحالية وأمان حساب الإدارة.'),
     const SizedBox(height: 18),
-    Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [
-      CircleAvatar(radius: 28, child: Text(widget.session.displayName.isEmpty ? '؟' : widget.session.displayName.substring(0, 1))),
-      const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(widget.session.displayName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4), Text('الدور: ${_roleLabel(widget.session.role)}'),
-        const SizedBox(height: 4), const Text('رموز الجلسة محفوظة باستخدام التخزين الآمن على الجهاز.'),
-      ])),
-    ]))),
+    Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Align(
+            alignment: Alignment.topLeft,
+            child: IconButton(
+              tooltip: 'تعديل بيانات المشرف',
+              onPressed: _editProfile,
+              icon: const Icon(Icons.edit_outlined),
+            ),
+          ),
+          Row(children: [
+            CircleAvatar(radius: 28, child: Text(_displayName.isEmpty ? '؟' : _displayName.substring(0, 1))),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_displayName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+              if (_email.isNotEmpty) ...[const SizedBox(height: 4), Text(_email)],
+              const SizedBox(height: 4), Text('الدور: ${_roleLabel(widget.session.role)}'),
+              const SizedBox(height: 4),
+              const Text('رموز الجلسة محفوظة باستخدام التخزين الآمن على الجهاز.'),
+            ])),
+          ]),
+        ]),
+      ),
+    ),
     const SizedBox(height: 14),
     Card(child: Padding(padding: const EdgeInsets.all(18), child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('تغيير كلمة المرور', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
