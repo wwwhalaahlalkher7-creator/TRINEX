@@ -169,6 +169,8 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
     }
   }
 
+  bool get _scheduleOnly => widget.initialTab == 2;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -180,8 +182,8 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
           IconButton(tooltip: 'تحديث البيانات', onPressed: _loading ? null : _loadAll, icon: const Icon(Icons.refresh)),
         ]),
         const SizedBox(height: 18),
-        Card(clipBehavior: Clip.antiAlias, child: TabBar(controller: _tabs, isScrollable: true, tabs: const [Tab(icon: Icon(Icons.class_outlined), text: 'المقررات'), Tab(icon: Icon(Icons.menu_book_outlined), text: 'المواد'), Tab(icon: Icon(Icons.calendar_month_outlined), text: 'الجداول'), Tab(icon: Icon(Icons.cloud_sync_outlined), text: 'مزامنة Drive')])),
-        const SizedBox(height: 14),
+        if (!_scheduleOnly) Card(clipBehavior: Clip.antiAlias, child: TabBar(controller: _tabs, isScrollable: true, tabs: const [Tab(icon: Icon(Icons.class_outlined), text: 'المقررات'), Tab(icon: Icon(Icons.menu_book_outlined), text: 'المواد الدراسية'), Tab(icon: Icon(Icons.calendar_month_outlined), text: 'الجداول'), Tab(icon: Icon(Icons.cloud_sync_outlined), text: 'مزامنة Drive')])),
+        if (!_scheduleOnly) const SizedBox(height: 14),
         if (_tabs.index != 3) TextField(controller: _search, onChanged: (_) => setState(() {}), decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'ابحث في $_title...', suffixIcon: _search.text.isEmpty ? null : IconButton(onPressed: () { _search.clear(); setState(() {}); }, icon: const Icon(Icons.close)))),
         if (_tabs.index != 3) const SizedBox(height: 12),
         if (_tabs.index != 3) Align(alignment: AlignmentDirectional.centerStart, child: FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: Text('إضافة ${_tabs.index == 0 ? 'مقرر' : _tabs.index == 1 ? 'مادة' : 'موعد'}'))),
@@ -301,6 +303,33 @@ class _AcademicEditorState extends State<_AcademicEditor> {
     'end_time' => 'وقت النهاية (HH:MM)', 'room' => 'القاعة', 'lecturer' => 'المحاضر', _ => key,
   };
 
+  Future<void> _pickTime(String key) async {
+    final controller = _controllers[key];
+    if (controller == null) return;
+    final parts = controller.text.split(':');
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: (hour ?? 8).clamp(0, 23), minute: (minute ?? 0).clamp(0, 59)),
+      helpText: key == 'start_time' ? 'اختر وقت البداية' : 'اختر وقت النهاية',
+      cancelText: 'إلغاء',
+      confirmText: 'اختيار',
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      final hour24 = picked.hour;
+      final period = hour24 >= 12 ? 'مساءً' : 'صباحًا';
+      final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+      controller.text = '${hour24.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم اختيار ${hour12.toString()}:${picked.minute.toString().padLeft(2, '0')} $period')));
+    }
+  }
+
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
     final result = <String, dynamic>{'active': _active ? 1 : 0};
@@ -334,7 +363,14 @@ class _AcademicEditorState extends State<_AcademicEditor> {
       if (_isSubject || !_isMaterial) _dropdown('الفصل الدراسي', _semesterId, widget.semesters, (v) => setState(() { _semesterId = v; _subjectId = null; }), 'name_ar'),
       if (_isMaterial || !_isSubject) _dropdown('المقرر', _subjectId, widget.subjects.where((s) => (_departmentId == null || s['department_id']?.toString() == _departmentId) && (_semesterId == null || s['semester_id']?.toString() == _semesterId)).toList(), (v) => setState(() => _subjectId = v), 'name_ar'),
       if (!_isSubject && !_isMaterial) DropdownButtonFormField<int>(value: _day, decoration: const InputDecoration(labelText: 'اليوم'), items: const [DropdownMenuItem(value: 0, child: Text('الأحد')), DropdownMenuItem(value: 1, child: Text('الاثنين')), DropdownMenuItem(value: 2, child: Text('الثلاثاء')), DropdownMenuItem(value: 3, child: Text('الأربعاء')), DropdownMenuItem(value: 4, child: Text('الخميس')), DropdownMenuItem(value: 5, child: Text('الجمعة')), DropdownMenuItem(value: 6, child: Text('السبت'))], onChanged: (v) => setState(() => _day = v ?? 0)),
-      ..._controllers.entries.map((entry) => Padding(padding: const EdgeInsets.only(top: 10), child: TextFormField(controller: entry.value, decoration: InputDecoration(labelText: _label(entry.key)), keyboardType: entry.key == 'sort_order' ? TextInputType.number : TextInputType.text, validator: (v) => entry.key == 'title' && (v == null || v.trim().isEmpty) ? 'العنوان مطلوب' : entry.key == 'name_ar' && (v == null || v.trim().isEmpty) ? 'اسم المقرر مطلوب' : null))),
+      ..._controllers.entries.map((entry) => Padding(padding: const EdgeInsets.only(top: 10), child: TextFormField(
+        controller: entry.value,
+        readOnly: entry.key == 'start_time' || entry.key == 'end_time',
+        onTap: entry.key == 'start_time' || entry.key == 'end_time' ? () => _pickTime(entry.key) : null,
+        decoration: InputDecoration(labelText: _label(entry.key), suffixIcon: entry.key == 'start_time' || entry.key == 'end_time' ? const Icon(Icons.schedule_outlined) : null),
+        keyboardType: entry.key == 'sort_order' ? TextInputType.number : TextInputType.text,
+        validator: (v) => entry.key == 'title' && (v == null || v.trim().isEmpty) ? 'العنوان مطلوب' : entry.key == 'name_ar' && (v == null || v.trim().isEmpty) ? 'اسم المقرر مطلوب' : null,
+      ))),
       if (_isMaterial) CheckboxListTile(value: _pinned, onChanged: (v) => setState(() => _pinned = v ?? false), contentPadding: EdgeInsets.zero, title: const Text('تثبيت المادة في الأعلى')),
       SwitchListTile(value: _active, onChanged: (v) => setState(() => _active = v), contentPadding: EdgeInsets.zero, title: const Text('نشط')),
     ])))),

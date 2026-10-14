@@ -47,14 +47,17 @@ class _AccountPageState extends State<AccountPage> {
     const SizedBox(height: 6),
     const Text('بيانات الجلسة الحالية وأمان حساب الإدارة.'),
     const SizedBox(height: 18),
-    Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [
-      CircleAvatar(radius: 28, child: Text(widget.session.displayName.isEmpty ? '؟' : widget.session.displayName.substring(0, 1))),
-      const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(widget.session.displayName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4), Text('الدور: ${_roleLabel(widget.session.role)}'),
-        const SizedBox(height: 4), const Text('رموز الجلسة محفوظة باستخدام التخزين الآمن على الجهاز.'),
+    Card(child: Stack(children: [
+      Padding(padding: const EdgeInsets.fromLTRB(18, 46, 18, 18), child: Row(children: [
+        CircleAvatar(radius: 28, child: Text(widget.session.displayName.isEmpty ? '؟' : widget.session.displayName.substring(0, 1))),
+        const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(widget.session.displayName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4), Text('الدور: ${_roleLabel(widget.session.role)}'),
+          const SizedBox(height: 4), const Text('رموز الجلسة محفوظة باستخدام التخزين الآمن على الجهاز.'),
+        ])),
       ])),
-    ]))),
+      PositionedDirectional(start: 6, top: 4, child: IconButton(tooltip: 'تعديل بيانات المشرف', onPressed: _editProfile, icon: const Icon(Icons.edit_outlined))),
+    ])),
     const SizedBox(height: 14),
     Card(child: Padding(padding: const EdgeInsets.all(18), child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('تغيير كلمة المرور', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
