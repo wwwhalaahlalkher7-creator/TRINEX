@@ -366,11 +366,11 @@ class _DashboardPageState extends State<DashboardPage> {
       _StatData('الموظفون النشطون', _number('activeStaff'), Icons.groups_2_outlined, const Color(0xFF0C8B9A)),
       _StatData('المواد الدراسية', _number('materials'), Icons.menu_book_outlined, const Color(0xFFAF6A18)),
       _StatData('الأخبار', _number('news'), Icons.article_outlined, const Color(0xFFCA5573)),
-      _StatData('الإشعارات', _number('announcements'), Icons.notifications_active_outlined, const Color(0xFF397A63)),
+      _StatData('الإعلانات', _number('announcements'), Icons.campaign_outlined, const Color(0xFF397A63)),
       _StatData('التعليقات الظاهرة', _number('visibleComments'), Icons.forum_outlined, const Color(0xFF5A72A7)),
     ];
     final quickActions = <_QuickAction>[
-      const _QuickAction(AdminSection.content, 'إدارة المحتوى', 'الأخبار والإنجازات والفعاليات', Icons.article_outlined),
+      const _QuickAction(AdminSection.content, 'إدارة المحتوى', 'الأخبار والإعلانات والفعاليات', Icons.article_outlined),
       const _QuickAction(AdminSection.materials, 'المواد الدراسية', 'المواد والملفات الأكاديمية', Icons.menu_book_outlined),
       const _QuickAction(AdminSection.staff, 'إدارة الموظفين', 'الحسابات والأدوار الإدارية', Icons.manage_accounts_outlined),
       const _QuickAction(AdminSection.security, 'الأمان والتدقيق', 'أحداث الدخول وسجل العمليات', Icons.shield_outlined),

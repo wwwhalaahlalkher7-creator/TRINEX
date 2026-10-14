@@ -12,7 +12,7 @@ abstract final class AdminPermissions {
       case superAdmin:
         return true;
       case contentManager:
-        return const {AdminSection.overview, AdminSection.content, AdminSection.notifications, AdminSection.account}
+        return const {AdminSection.overview, AdminSection.content, AdminSection.account}
             .contains(section);
       case academicManager:
         return const {
