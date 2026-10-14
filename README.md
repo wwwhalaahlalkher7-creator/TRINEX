@@ -1,6 +1,6 @@
 # TRINEX-Admin
 
-تطبيق إدارة أصلي مستقل مبني باستخدام Flutter، للاستخدام الإداري المحلي على Android وiOS وWindows. المستودع مستقل عن `Union-App`؛ ولا ينسخ واجهات الموقع أو لوحة التحكم القديمة. يعتمد التصميم على نظام مكونات خاص بالتطبيق، مع العربية وRTL فقط.
+تطبيق إدارة أصلي مستقل مبني باستخدام Flutter، للاستخدام الإداري المحلي على Android وWindows. المستودع مستقل عن `Union-App`؛ ولا ينسخ واجهات الموقع أو لوحة التحكم القديمة. يعتمد التصميم على نظام مكونات خاص بالتطبيق، مع العربية وRTL فقط.
 
 ## حالة المشروع
 
@@ -27,7 +27,7 @@
 ## تجهيز ملفات المنصات وتشغيل التطبيق
 
 ```bash
-flutter create --platforms=android,ios,windows .
+flutter create --platforms=android,windows .
 flutter pub get
 flutter analyze
 flutter test
@@ -54,14 +54,7 @@ Windows:
 ```bash
 flutter build windows --release --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
 ```
-
-iOS (يجب التنفيذ على macOS):
-
-```bash
-flutter build ios --release --no-codesign --dart-define=TRINEX_API_BASE_URL=https://YOUR_API_HOST/api/v1
-```
-
-لا تُنتج حزمة AAB؛ التوزيع المستهدف محلي. بناء iOS دون توقيع مخصص للتحقق، وليس حزمة تثبيت نهائية للأجهزة.
+لا تُنتج حزمة AAB؛ التوزيع المستهدف محلي. بناء iOS مستبعد من عملية البناء الحالية.
 
 ## اتصال Android بالشبكة
 
@@ -87,7 +80,7 @@ Cloudflare قابل للحل أو أن الخدمة متاحة.
 
 ## المستودع وCI
 
-ملف `.github/workflows/ci.yml` يفحص التنسيق والتحليل والاختبارات، ويبني Android APK وWindows، ويتحقق من بناء iOS دون توقيع على macOS. لا ينشر هذا الـworkflow التطبيق إلى متجر أو إلى خدمة إنتاجية.
+ملف `.github/workflows/ci.yml` يفحص التنسيق والتحليل والاختبارات، ويبني Android APK وWindows. لا ينشر هذا الـworkflow التطبيق إلى متجر أو إلى خدمة إنتاجية.
 
 ## الأمان والحدود المعروفة
 
@@ -141,14 +134,4 @@ See [`docs/PHASE8_AUDIT.md`](docs/PHASE8_AUDIT.md) for the security/integration 
 - These are application-observed operational metrics, not Cloudflare account billing, Worker CPU-time, or provider-wide storage analytics. Exact account usage requires a separately authorized Cloudflare Analytics/API integration.
 - The admin navigation no longer includes the standalone moderation page or assignable staff moderator role. Student moderators are granted/revoked from the Students page.
 - Backend migration `0040_student_moderators_and_resource_usage.sql` is required before deploying the updated Worker or app clients. See `docs/USAGE_ANALYTICS_RESOURCE_METRICS_AND_STUDENT_MODERATION.md`.
-
-
-## October 2026 UX integration updates
-- Student creation no longer asks for student-owned email or semester fields; the backend keeps existing values when editing because these fields are omitted from the patch payload.
-- Administrative role names are presented in Arabic while stable role IDs remain unchanged for API authorization.
-- Content editor now uses a calendar date picker, gallery selection on mobile and file selection on desktop, image preview, and inferred publication state.
-- Added a staff self-profile update endpoint for display name and email, with server-side validation and duplicate-email protection.
-- Cloudflare scheduled handler promotes dated news and achievements when their publish date arrives; future events can be returned to clients and carry a “قريباً” label in the student app.
-- Removed the standalone media-upload page from admin navigation; media selection is embedded in the content editor.
-
-Build verification note: backend syntax and repository regression checks passed in the supplied source environment. Flutter SDK was not available here, so Android/Windows builds and Dart analyzer were not run.
+\n\n## App identity and supported build targets\n\n- Display name: **TRINEX Admin**.\n- Android: release APK with generated launcher icon.\n- Windows: release desktop build with generated application icon.\n- iOS is intentionally excluded from the current CI/build workflow; it can be reintroduced later without changing the Android or Windows targets.\n

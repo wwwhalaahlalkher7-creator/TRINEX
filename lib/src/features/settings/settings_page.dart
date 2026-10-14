@@ -72,7 +72,7 @@ class _SettingsPageState extends State<SettingsPage> {
     Align(alignment: AlignmentDirectional.centerEnd, child: FilledButton.icon(onPressed: () => _edit(null), icon: const Icon(Icons.add), label: const Text('إضافة إعداد'))),
     if (_loading && _items.isEmpty) const Padding(padding: EdgeInsets.all(30), child: Center(child: CircularProgressIndicator())),
     if (_error != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Text('تعذر تحميل الإعدادات: $_error'))),
-    if (!_loading && _error == null && _items.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.info_outline, size: 30), SizedBox(height: 10), Text('صفحة الإعدادات الحالية محدودة النطاق', style: TextStyle(fontWeight: FontWeight.w800)), SizedBox(height: 6), Text('تدير هذه الصفحة مفاتيح العرض العامة public.* والشعار فقط. إعدادات الحساب وكلمة المرور موجودة في صفحة «حسابي»، أما إعدادات الخادم الحساسة فلا تظهر هنا عمدًا. لا توجد إعدادات عامة مسجلة حاليًا.')]))),
+    if (!_loading && _error == null && _items.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(20), child: Text('لا توجد إعدادات مسجلة.'))),
     for (final item in _items) Card(child: ListTile(
       leading: const CircleAvatar(child: Icon(Icons.tune_outlined)),
       title: Text(item['key']?.toString() ?? 'مفتاح غير معروف', textDirection: TextDirection.ltr),

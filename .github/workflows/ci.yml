@@ -57,7 +57,7 @@ jobs:
           channel: stable
           cache: true
       - name: Generate Android scaffolding
-        run: flutter create --platforms=android .
+        run: flutter create --platforms=android,windows .
       - name: Ensure Android internet permission
         shell: bash
         run: |
@@ -88,6 +88,20 @@ jobs:
           cache: gradle
       - name: Resolve dependencies
         run: flutter pub get
+      - name: Generate Android launcher icons
+        run: dart run flutter_launcher_icons
+      - name: Set Android app display name
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          content = path.read_text()
+          content = content.replace('android:label="trinex_admin"', 'android:label="TRINEX Admin"')
+          content = content.replace('android:label="trinex admin"', 'android:label="TRINEX Admin"')
+          path.write_text(content)
+          if 'android:label="TRINEX Admin"' not in content:
+              raise SystemExit("Could not set Android app display name.")
+          PYCODE
       - name: Set Android compile SDK to 36
         run: |
           python3 - <<'PYCODE'
@@ -171,9 +185,20 @@ jobs:
           channel: stable
           cache: true
       - name: Generate Windows scaffolding
-        run: flutter create --platforms=windows .
+        run: flutter create --platforms=android,windows .
       - name: Resolve dependencies
         run: flutter pub get
+      - name: Generate Windows launcher icon
+        run: dart run flutter_launcher_icons
+      - name: Set Windows app display name
+        shell: pwsh
+        run: |
+          $path = "windows/runner/main.cpp"
+          if (Test-Path $path) {
+            $content = Get-Content $path -Raw
+            $content = $content.Replace('window.Create(L"trinex_admin"', 'window.Create(L"TRINEX Admin"')
+            Set-Content -Path $path -Value $content -NoNewline
+          }
       - name: Build Windows release
         run: flutter build windows --release
       - uses: actions/upload-artifact@v4
@@ -183,20 +208,3 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  build-ios:
-    name: Validate iOS simulator build
-    needs: verify
-    if: github.event_name == 'workflow_dispatch' && (inputs.platforms == 'ios' || inputs.platforms == 'all')
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - name: Generate iOS scaffolding
-        run: flutter create --platforms=ios .
-      - name: Resolve dependencies
-        run: flutter pub get
-      - name: Build iOS simulator (unsigned)
-        run: flutter build ios --simulator --debug --no-codesign
