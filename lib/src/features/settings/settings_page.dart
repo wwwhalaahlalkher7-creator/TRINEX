@@ -30,7 +30,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   dynamic _parseStored(dynamic raw) {
-    if (raw is! String) return raw;
+    if (raw is! String) { return raw; }
     try { return jsonDecode(raw); } catch (_) { return raw; }
   }
 
@@ -52,14 +52,14 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
     ));
     keyController.dispose(); valueController.dispose();
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) { return; }
     try {
       await widget.api.put('/admin/settings/${Uri.encodeComponent(result['key'] as String)}', body: result);
-      if (!mounted) return;
+      if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ الإعداد.')));
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ الإعداد: $e')));
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ الإعداد: $e'))); }
     }
   }
 

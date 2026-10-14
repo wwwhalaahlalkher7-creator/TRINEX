@@ -50,7 +50,7 @@ class SessionStore {
   /// API client can exchange its refresh token before clearing local state.
   Future<AdminSession?> readIncludingExpired() async {
     final raw = await _storage.read(key: _key);
-    if (raw == null) return null;
+    if (raw == null) { return null; }
     final session = AdminSession.fromJson(raw);
     if (session == null) {
       await clear();
@@ -61,7 +61,7 @@ class SessionStore {
 
   Future<AdminSession?> read() async {
     final session = await readIncludingExpired();
-    if (session == null) return null;
+    if (session == null) { return null; }
     if (session.isExpired) {
       await clear();
       return null;

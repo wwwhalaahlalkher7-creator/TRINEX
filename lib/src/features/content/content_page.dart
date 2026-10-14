@@ -68,11 +68,11 @@ class _ContentPageState extends State<ContentPage> {
       final rows = raw is List
           ? raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
           : <Map<String, dynamic>>[];
-      if (mounted) setState(() => _items = rows);
+      if (mounted) { setState(() => _items = rows); }
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) { setState(() => _error = error.toString()); }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) { setState(() => _loading = false); }
     }
   }
 
@@ -91,7 +91,7 @@ class _ContentPageState extends State<ContentPage> {
       context: context,
       builder: (_) => _ContentEditor(api: widget.api, kind: _kind, initial: item),
     );
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) { return; }
     try {
       final id = item?['id']?.toString();
       if (id == null || id.isEmpty) {
@@ -99,17 +99,17 @@ class _ContentPageState extends State<ContentPage> {
       } else {
         await widget.api.patch('/admin/${_kind.endpoint}/$id', body: result);
       }
-      if (!mounted) return;
+      if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isCreate ? 'تم إنشاء السجل.' : 'تم حفظ التعديلات.')));
       await _load();
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ المحتوى: $error')));
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ المحتوى: $error'))); }
     }
   }
 
   Future<void> _delete(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
-    if (id.isEmpty) return;
+    if (id.isEmpty) { return; }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -121,14 +121,14 @@ class _ContentPageState extends State<ContentPage> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) { return; }
     try {
       await widget.api.delete('/admin/${_kind.endpoint}/$id');
-      if (!mounted) return;
+      if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف المحتوى.')));
       await _load();
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحذف: $error')));
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحذف: $error'))); }
     }
   }
 
@@ -284,12 +284,12 @@ class _ContentEditorState extends State<_ContentEditor> {
     final now = DateTime.now();
     final current = _readDate(controller.text);
     final picked = await showDatePicker(context: context, initialDate: current ?? now, firstDate: DateTime(2000), lastDate: DateTime(2100), helpText: 'اختر التاريخ');
-    if (picked != null) controller.text = '${picked.day.toString().padLeft(2,'0')}/${picked.month.toString().padLeft(2,'0')}/${picked.year}';
+    if (picked != null) { controller.text = '${picked.day.toString().padLeft(2,'0')}/${picked.month.toString().padLeft(2,'0')}/${picked.year}'; }
   }
 
   Future<void> _pickAndUploadImage() async {
     final picked = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
-    if (picked == null || picked.files.isEmpty || !mounted) return;
+    if (picked == null || picked.files.isEmpty || !mounted) { return; }
     final file = picked.files.single;
     final bytes = file.bytes;
     if (bytes == null || bytes.isEmpty) { setState(() => _imageError = 'تعذر قراءة الصورة من الجهاز.'); return; }
@@ -301,8 +301,8 @@ class _ContentEditorState extends State<_ContentEditor> {
     try {
       final uploaded = await widget.api.uploadImage(bytes: bytes, filename: file.name, contentType: type);
       final url = uploaded['url']?.toString() ?? '';
-      if (url.isEmpty) throw const ApiServiceException('لم يُرجع الخادم رابط الصورة.');
-      if (mounted) setState(() => _imageUrl.text = url);
+      if (url.isEmpty) { throw const ApiServiceException('لم يُرجع الخادم رابط الصورة.'); }
+      if (mounted) { setState(() => _imageUrl.text = url); }
     } catch (e) { if (mounted) setState(() => _imageError = e.toString()); }
     finally { if (mounted) setState(() => _uploadingImage = false); }
   }
@@ -344,7 +344,7 @@ class _ContentEditorState extends State<_ContentEditor> {
   }
 
   void _save() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) { return; }
     final title = _title.text.trim();
     final body = _body.text.trim();
     var dateText = switch (widget.kind) { _ContentKind.news => _isoDate(_publishAt.text), _ContentKind.events => _isoDate(_eventAt.text), _ContentKind.achievements => _isoDate(_achievedAt.text), _ContentKind.announcements => _isoDate(_publishAt.text) };

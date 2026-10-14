@@ -30,17 +30,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
       final rows = raw is List
           ? raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
           : <Map<String, dynamic>>[];
-      if (mounted) setState(() => _items = rows);
+      if (mounted) { setState(() => _items = rows); }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) { setState(() => _error = e.toString()); }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) { setState(() => _loading = false); }
     }
   }
 
   Future<void> _editDraft(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
-    if (id.isEmpty || item['status'] != 'draft') return;
+    if (id.isEmpty || item['status'] != 'draft') { return; }
     final title = TextEditingController(text: item['title']?.toString() ?? '');
     final body = TextEditingController(text: item['body']?.toString() ?? '');
     final type = TextEditingController(text: item['type']?.toString() ?? 'general');
@@ -59,10 +59,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
       actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(context, {'title': title.text.trim(), 'body': body.text.trim(), 'type': type.text.trim().isEmpty ? 'general' : type.text.trim(), 'target_department_id': department.text.trim().isEmpty ? null : department.text.trim(), 'target_semester_id': semester.text.trim().isEmpty ? null : semester.text.trim()}); }, child: const Text('حفظ المسودة'))],
     ));
     title.dispose(); body.dispose(); type.dispose(); department.dispose(); semester.dispose();
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) { return; }
     try {
       await widget.api.patch('/admin/announcements/$id', body: result);
-      if (!mounted) return;
+      if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ المسودة. لم يتم إرسالها.')));
       await _load();
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ المسودة: $e'))); }
@@ -70,16 +70,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _approveDraft(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
-    if (id.isEmpty || item['status'] != 'draft') return;
+    if (id.isEmpty || item['status'] != 'draft') { return; }
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
       title: const Text('اعتماد المسودة؟'),
       content: Text('سيتم نشر «${item['title'] ?? 'الإشعار'}» لتصبح جاهزة للإرسال. الاعتماد لا يعني إرسالها تلقائيًا.'),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('اعتماد ونشر'))],
     ));
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) { return; }
     try {
       await widget.api.patch('/admin/announcements/$id', body: {'status': 'published'});
-      if (!mounted) return;
+      if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم اعتماد الإشعار ونشره. لم يُرسل تلقائيًا.')));
       await _load();
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر اعتماد المسودة: $e'))); }
@@ -87,7 +87,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _send(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
-    if (id.isEmpty || item['status'] != 'published') return;
+    if (id.isEmpty || item['status'] != 'published') { return; }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -99,18 +99,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) { return; }
     setState(() => _sending.add(id));
     try {
       final result = await widget.api.post('/admin/notifications/send', body: {'announcementId': id});
       final data = result['data'] is Map ? Map<String, dynamic>.from(result['data'] as Map) : result;
-      if (!mounted) return;
+      if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تجهيز الإشعار. عدد المستهدفين: ${data['targets'] ?? '—'}، الجدد: ${data['newTargets'] ?? '—'}.')));
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الإشعار: $e')));
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الإشعار: $e'))); }
     } finally {
-      if (mounted) setState(() => _sending.remove(id));
+      if (mounted) { setState(() => _sending.remove(id)); }
     }
   }
 

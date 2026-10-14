@@ -28,7 +28,7 @@ class _StudentsPageState extends State<StudentsPage> {
   Future<void> _edit([Map<String,dynamic>? s]) async {
     if(_departments.isEmpty){_msg('قائمة الأقسام غير متاحة من الخادم.',bad:true);return;}
     final data=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>_StudentForm(student:s,departments:_departments,semesters:_semesters));
-    if(data==null||!mounted)return;
+    if(data==null||!mounted) { return; }
     try{final id=s?['id']?.toString(); if(id==null||id.isEmpty){await widget.api.post('/admin/students',body:data);}else{await widget.api.patch('/admin/students/$id',body:data);} _msg(id==null?'تمت إضافة الطالب.':'تم حفظ بيانات الطالب.');await _load();}catch(e){_msg('تعذر الحفظ: $e',bad:true);}
   }
   Future<void> _toggle(Map<String,dynamic> s,bool active)async{try{await widget.api.patch('/admin/students/${s['id']}',body:{'active':active?1:0});_msg(active?'تم تفعيل الحساب.':'تم إيقاف الحساب.');await _load();}catch(e){_msg('تعذر تغيير الحالة: $e',bad:true);}}
@@ -70,8 +70,8 @@ class _StudentFormState extends State<_StudentForm>{final _form=GlobalKey<FormSt
              TextFormField(controller: _number, decoration: const InputDecoration(labelText: 'الرقم الجامعي *'), validator: (v) => v == null || !RegExp(r'^[0-9]+(?:-[0-9]+)?$').hasMatch(v.trim()) ? 'صيغة الرقم الجامعي غير صالحة' : null),
              TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'الاسم الكامل *'), validator: (v) => v == null || v.trim().isEmpty ? 'الاسم مطلوب' : null),
              if(widget.student!=null) TextFormField(controller: _email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), keyboardType: TextInputType.emailAddress, validator: (v) => v != null && v.trim().isNotEmpty && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim()) ? 'البريد الإلكتروني غير صالح' : null),
-             DropdownButtonFormField<String>(value: _dept, isExpanded: true, decoration: const InputDecoration(labelText: 'القسم *'), items: _opts(widget.departments), onChanged: (v) => setState(() => _dept = v), validator: (v) => v == null ? 'اختر القسم' : null),
-             if(widget.student!=null) DropdownButtonFormField<String>(value: _semester, isExpanded: true, decoration: const InputDecoration(labelText: 'الصف الدراسي / المستوى'), items: [const DropdownMenuItem<String>(value: null, child: Text('غير محدد')), ..._opts(widget.semesters)], onChanged: (v) => setState(() => _semester = v)),
+             DropdownButtonFormField<String>(initialValue: _dept, isExpanded: true, decoration: const InputDecoration(labelText: 'القسم *'), items: _opts(widget.departments), onChanged: (v) => setState(() => _dept = v), validator: (v) => v == null ? 'اختر القسم' : null),
+             if(widget.student!=null) DropdownButtonFormField<String>(initialValue: _semester, isExpanded: true, decoration: const InputDecoration(labelText: 'الصف الدراسي / المستوى'), items: [const DropdownMenuItem<String>(value: null, child: Text('غير محدد')), ..._opts(widget.semesters)], onChanged: (v) => setState(() => _semester = v)),
              if(widget.student!=null) SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('الحساب نشط'), value: _active, onChanged: (v) => setState(() => _active = v)),
            ],
          ),
@@ -112,7 +112,7 @@ class _StaffFormState extends State<_StaffForm>{final _form=GlobalKey<FormState>
              TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'الاسم الظاهر *'), validator: (v) => v == null || v.trim().isEmpty ? 'الاسم مطلوب' : null),
              TextFormField(controller: _email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), keyboardType: TextInputType.emailAddress),
              TextFormField(controller: _password, decoration: InputDecoration(labelText: widget.member == null ? 'كلمة المرور (8 أحرف على الأقل) *' : 'كلمة مرور جديدة (اختياري)'), obscureText: true, validator: (v) => widget.member == null && (v == null || v.length < 8) ? 'كلمة المرور مطلوبة وبحد أدنى 8 أحرف' : v != null && v.isNotEmpty && v.length < 8 ? '8 أحرف على الأقل' : null),
-             DropdownButtonFormField<String>(value: _role, isExpanded: true, decoration: const InputDecoration(labelText: 'الدور'), items: const [DropdownMenuItem(value: 'super_admin', child: Text('مدير النظام')), DropdownMenuItem(value: 'content_manager', child: Text('مدير المحتوى')), DropdownMenuItem(value: 'academic_manager', child: Text('مدير الشؤون الأكاديمية'))], onChanged: (v) { if (v != null) setState(() => _role = v); }),
+             DropdownButtonFormField<String>(initialValue: _role, isExpanded: true, decoration: const InputDecoration(labelText: 'الدور'), items: const [DropdownMenuItem(value: 'super_admin', child: Text('مدير النظام')), DropdownMenuItem(value: 'content_manager', child: Text('مدير المحتوى')), DropdownMenuItem(value: 'academic_manager', child: Text('مدير الشؤون الأكاديمية'))], onChanged: (v) { if (v != null) setState(() => _role = v); }),
              if(widget.member!=null) SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('الحساب نشط'), value: _active, onChanged: (v) => setState(() => _active = v)),
              if (widget.member != null) const Text('اترك كلمة المرور فارغة للإبقاء على الحالية.'),
            ],

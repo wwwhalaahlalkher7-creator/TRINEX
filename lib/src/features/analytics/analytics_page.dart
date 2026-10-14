@@ -25,10 +25,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     setState(() { _loading = true; _error = null; });
     try {
       final result = await widget.api.get('/admin/analytics/overview?days=$_days');
-      if (!mounted) return;
+      if (!mounted) { return; }
       setState(() { _data = result; _loading = false; });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) { return; }
       setState(() { _error = error.toString(); _loading = false; });
     }
   }
@@ -36,15 +36,15 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   int _int(Object? value) => value is num ? value.toInt() : int.tryParse('$value') ?? 0;
   List<Map<String, dynamic>> _rows(String key) {
     final value = _data[key];
-    if (value is! List) return const [];
+    if (value is! List) { return const []; }
     return value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   List<Map<String, dynamic>> _routeRows(Map<String, dynamic> resources, String key) {
     final top = resources['topConsumers'];
-    if (top is! Map) return const [];
+    if (top is! Map) { return const []; }
     final rows = top[key];
-    if (rows is! List) return const [];
+    if (rows is! List) { return const []; }
     return rows.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
@@ -104,9 +104,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               final r2 = resources['r2'] is Map ? Map<String, dynamic>.from(resources['r2'] as Map) : <String, dynamic>{};
               String bytes(Object? value) {
                 final n = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
-                if (n >= 1024 * 1024 * 1024) return '${(n / (1024 * 1024 * 1024)).toStringAsFixed(2)} GiB';
-                if (n >= 1024 * 1024) return '${(n / (1024 * 1024)).toStringAsFixed(2)} MiB';
-                if (n >= 1024) return '${(n / 1024).toStringAsFixed(1)} KiB';
+                if (n >= 1024 * 1024 * 1024) { return '${(n / (1024 * 1024 * 1024)).toStringAsFixed(2)} GiB'; }
+                if (n >= 1024 * 1024) { return '${(n / (1024 * 1024)).toStringAsFixed(2)} MiB'; }
+                if (n >= 1024) { return '${(n / 1024).toStringAsFixed(1)} KiB'; }
                 return '${n.round()} B';
               }
               final metrics = <_Metric>[
@@ -209,7 +209,7 @@ class _BarRows extends StatelessWidget {
   final Map<String, String> labels;
   @override
   Widget build(BuildContext context) {
-    if (rows.isEmpty) return const Text('لا توجد بيانات مسجلة لهذه الفترة.');
+    if (rows.isEmpty) { return const Text('لا توجد بيانات مسجلة لهذه الفترة.'); }
     final max = rows.map((row) => row[countKey] is num ? (row[countKey] as num).toInt() : 0).fold<int>(1, (a, b) => a > b ? a : b);
     return Column(children: rows.map((row) {
       final key = row[labelKey]?.toString() ?? 'other';

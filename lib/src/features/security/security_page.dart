@@ -35,10 +35,10 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
         widget.api.get('/admin/audit-logs?limit=100'),
         widget.api.get('/admin/security/auth-events?limit=100'),
       ]);
-      if (!mounted) return;
+      if (!mounted) { return; }
       setState(() { _audit = _rows(results[0]['data']); _auth = _rows(results[1]['data']); });
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) { setState(() => _error = e.toString()); }
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
@@ -61,7 +61,7 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
     if (value is Map) {
       return value.map((key, item) {
         final name = key.toString();
-        if (sensitive.hasMatch(name)) return MapEntry(name, '[محجوب]');
+        if (sensitive.hasMatch(name)) { return MapEntry(name, '[محجوب]'); }
         if (name.toLowerCase() == 'metadata_json' && item is String) {
           try {
             return MapEntry(name, _redact(jsonDecode(item)));
@@ -72,7 +72,7 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
         return MapEntry(name, _redact(item));
       });
     }
-    if (value is List) return value.map(_redact).toList();
+    if (value is List) { return value.map(_redact).toList(); }
     if (value is String) {
       final trimmed = value.trim();
       if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -94,8 +94,8 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
   }
 
   Widget _logList(List<Map<String, dynamic>> items, {required bool auth}) {
-    if (_loading && items.isEmpty) return const Center(child: CircularProgressIndicator());
-    if (items.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('لا توجد سجلات لعرضها.')));
+    if (_loading && items.isEmpty) { return const Center(child: CircularProgressIndicator()); }
+    if (items.isEmpty) { return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('لا توجد سجلات لعرضها.'))); }
     return ListView.separated(
       padding: const EdgeInsets.all(16), itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),

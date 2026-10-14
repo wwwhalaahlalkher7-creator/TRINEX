@@ -105,7 +105,7 @@ void main() {
       final client = MockClient((request) async {
         if (request.url.path.endsWith('/auth/refresh')) {
           refreshCalls++;
-          if (!refreshStarted.isCompleted) refreshStarted.complete();
+          if (!refreshStarted.isCompleted) { refreshStarted.complete(); }
           await releaseRefresh.future;
           return jsonResponse({
             'success': true,

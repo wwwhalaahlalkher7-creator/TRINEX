@@ -70,7 +70,7 @@ class _AdminShellState extends State<AdminShell> {
     }
 
     final visibleSections = _visibleSections(_session!.role);
-    if (!visibleSections.contains(_section)) _section = AdminSection.overview;
+    if (!visibleSections.contains(_section)) { _section = AdminSection.overview; }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -192,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) { return; }
     setState(() { _busy = true; _error = null; });
     try {
       final session = await widget.api.login(_userController.text, _passwordController.text);

@@ -44,17 +44,17 @@ class _AccountPageState extends State<AccountPage> {
       actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () { if (form.currentState!.validate()) Navigator.pop(dialogContext, {'displayName': name.text.trim(), 'email': email.text.trim()}); }, child: const Text('حفظ'))],
     ));
     name.dispose(); email.dispose();
-    if (data == null || !mounted) return;
+    if (data == null || !mounted) { return; }
     try {
       await widget.api.patch('/auth/staff/profile', body: data);
-      if (!mounted) return;
+      if (!mounted) { return; }
       setState(() { _displayName = data['displayName']!; _email = data['email']!; });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات المشرف.')));
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث البيانات: $e'))); }
   }
 
   Future<void> _changePassword() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) { return; }
     setState(() => _busy = true);
     try {
       await widget.api.post('/auth/staff/change-password', body: {
@@ -62,10 +62,10 @@ class _AccountPageState extends State<AccountPage> {
         'newPassword': _next.text,
       });
       _current.clear(); _next.clear(); _confirm.clear();
-      if (!mounted) return;
+      if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تغيير كلمة المرور. أُبطلت الجلسات الأخرى لهذا الحساب.')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تغيير كلمة المرور: $e')));
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تغيير كلمة المرور: $e'))); }
     } finally { if (mounted) setState(() => _busy = false); }
   }
 

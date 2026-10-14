@@ -40,8 +40,8 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   }
 
   List<Map<String, dynamic>> _rows(dynamic value) {
-    if (value is List) return value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-    if (value is Map && value['data'] is List) return _rows(value['data']);
+    if (value is List) { return value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList(); }
+    if (value is Map && value['data'] is List) { return _rows(value['data']); }
     return [];
   }
 
@@ -61,7 +61,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
         _fetch('/semesters'),
         _fetch('/admin/drive/sync-status'),
       ]);
-      if (!mounted) return;
+      if (!mounted) { return; }
       setState(() {
         _replace(_subjects, results[0]);
         _replace(_materials, results[1]);
@@ -71,9 +71,9 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
         _driveRuns = results[5];
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) { setState(() => _error = e.toString()); }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) { setState(() => _loading = false); }
     }
   }
 
@@ -87,7 +87,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
       _ => _schedules,
     };
     final q = _search.text.trim().toLowerCase();
-    if (q.isEmpty) return rows;
+    if (q.isEmpty) { return rows; }
     return rows.where((row) => row.values.any((value) => value.toString().toLowerCase().contains(q))).toList();
   }
 
@@ -100,17 +100,17 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
       content: const Text('ستُحدّث المواد الموجودة وتُعطّل السجلات التي لم تعد موجودة في الفهرس. لن تُحذف الملفات من Drive بواسطة عملية المزامنة المعتادة.'),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('بدء المزامنة'))],
     ));
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) { return; }
     setState(() => _syncing = true);
     try {
       await widget.api.post('/admin/drive/sync');
-      if (!mounted) return;
+      if (!mounted) { return; }
       _message('تم إرسال طلب المزامنة بنجاح.');
       await _loadAll();
     } catch (e) {
-      if (mounted) _message('تعذرت المزامنة: $e', error: true);
+      if (mounted) { _message('تعذرت المزامنة: $e', error: true); }
     } finally {
-      if (mounted) setState(() => _syncing = false);
+      if (mounted) { setState(() => _syncing = false); }
     }
   }
 
@@ -119,7 +119,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   }
 
   Future<void> _edit([Map<String, dynamic>? item]) async {
-    if (_tabs.index > 1) return;
+    if (_tabs.index > 1) { return; }
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _AcademicEditor(
@@ -130,7 +130,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
         semesters: _semesters,
       ),
     );
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) { return; }
     try {
       final id = item?['id']?.toString();
       if (id == null || id.isEmpty) {
@@ -141,13 +141,13 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
       _message(id == null ? 'تمت إضافة السجل.' : 'تم حفظ التعديلات.');
       await _loadAll();
     } catch (e) {
-      if (mounted) _message('تعذر حفظ السجل: $e', error: true);
+      if (mounted) { _message('تعذر حفظ السجل: $e', error: true); }
     }
   }
 
   Future<void> _delete(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
-    if (id.isEmpty) return;
+    if (id.isEmpty) { return; }
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
       title: const Text('تأكيد الحذف'),
       content: Text(_tabs.index == 0 && (item['drive_file_id'] ?? '').toString().isNotEmpty
@@ -157,13 +157,13 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
               : 'هل تريد حذف «${item['title'] ?? item['name_ar'] ?? item['id']}»؟ قد يؤثر ذلك على البيانات المرتبطة.'),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف'))],
     ));
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) { return; }
     try {
       await widget.api.delete('/admin/$_resource/$id');
       _message('تم حذف السجل.');
       await _loadAll();
     } catch (e) {
-      if (mounted) _message('تعذر حذف السجل: $e', error: true);
+      if (mounted) { _message('تعذر حذف السجل: $e', error: true); }
     }
   }
 
@@ -210,7 +210,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
 
   Future<void> _openSubject(Map<String, dynamic> subject) async {
     final id = subject['id']?.toString();
-    if (id == null) return;
+    if (id == null) { return; }
     await showDialog<void>(context: context, builder: (dialogContext) {
       final sheets = _materials.where((m) => m['subject_id']?.toString() == id).toList();
       return AlertDialog(
@@ -230,14 +230,14 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
 
   Future<void> _addSheet(Map<String, dynamic> subject) async {
     final result = await showDialog<Map<String, dynamic>>(context: context, builder: (_) => _AcademicEditor(resource: 'materials', initial: {'subject_id': subject['id']}, subjects: _subjects, departments: _departments, semesters: _semesters));
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) { return; }
     try { await widget.api.post('/admin/materials', body: result); _message('تمت إضافة الشيت.'); await _loadAll(); }
     catch (e) { _message('تعذرت إضافة الشيت: $e', error: true); }
   }
 
   Future<void> _editMaterial(Map<String, dynamic> sheet) async {
     final result = await showDialog<Map<String, dynamic>>(context: context, builder: (_) => _AcademicEditor(resource: 'materials', initial: sheet, subjects: _subjects, departments: _departments, semesters: _semesters));
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) { return; }
     try { await widget.api.patch('/admin/materials/${sheet['id']}', body: result); _message('تم تحديث الشيت.'); await _loadAll(); }
     catch (e) { _message('تعذر تحديث الشيت: $e', error: true); }
   }
@@ -254,9 +254,9 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
 
   String _displayApiTime(dynamic value) {
     final raw = value?.toString() ?? ''; final parts = raw.split(':');
-    if (parts.length < 2) return raw.isEmpty ? 'غير محدد' : raw;
+    if (parts.length < 2) { return raw.isEmpty ? 'غير محدد' : raw; }
     final hour = int.tryParse(parts[0]); final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return raw;
+    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) { return raw; }
     final h = hour % 12 == 0 ? 12 : hour % 12;
     return '$h:${minute.toString().padLeft(2, '0')} ${hour < 12 ? 'صباحًا' : 'مساءً'}';
   }
@@ -314,8 +314,8 @@ class _AcademicEditorState extends State<_AcademicEditor> {
     if (!_isSubject && !_isMaterial) {
       _startPicker = _parseTime(item['start_time']?.toString());
       _endPicker = _parseTime(item['end_time']?.toString());
-      if (_startPicker != null) _controllers['start_time']!.text = _displayTime(_startPicker!);
-      if (_endPicker != null) _controllers['end_time']!.text = _displayTime(_endPicker!);
+      if (_startPicker != null) { _controllers['start_time']!.text = _displayTime(_startPicker!); }
+      if (_endPicker != null) { _controllers['end_time']!.text = _displayTime(_endPicker!); }
     }
   }
 
@@ -324,17 +324,17 @@ class _AcademicEditorState extends State<_AcademicEditor> {
 
   TimeOfDay? _parseTime(String? value) {
     final parts = (value ?? '').split(':');
-    if (parts.length < 2) return null;
+    if (parts.length < 2) { return null; }
     final h = int.tryParse(parts[0]); final m = int.tryParse(parts[1]);
-    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) return null;
+    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) { return null; }
     return TimeOfDay(hour: h, minute: m);
   }
-  String _displayTime(TimeOfDay time) { final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod; final m = time.minute.toString().padLeft(2, '0'); return '$h:${m} ${time.period == DayPeriod.am ? 'صباحًا' : 'مساءً'}'; }
+  String _displayTime(TimeOfDay time) { final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod; final m = time.minute.toString().padLeft(2, '0'); return '$h:$m ${time.period == DayPeriod.am ? 'صباحًا' : 'مساءً'}'; }
   String _apiTime(TimeOfDay time) => '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   Future<void> _pickScheduleTime(String key) async {
     final current = key == 'start_time' ? _startPicker : _endPicker;
     final picked = await showTimePicker(context: context, initialTime: current ?? TimeOfDay.now(), helpText: key == 'start_time' ? 'اختر وقت البداية' : 'اختر وقت النهاية', builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false), child: child!));
-    if (picked == null || !mounted) return;
+    if (picked == null || !mounted) { return; }
     setState(() { if (key == 'start_time') _startPicker = picked; else _endPicker = picked; _controllers[key]!.text = _displayTime(picked); });
   }
 
@@ -346,12 +346,12 @@ class _AcademicEditorState extends State<_AcademicEditor> {
   };
 
   Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
+    if (!_form.currentState!.validate()) { return; }
     final result = <String, dynamic>{};
-    if (widget.initial != null) result['active'] = _active ? 1 : 0;
+    if (widget.initial != null) { result['active'] = _active ? 1 : 0; }
     for (final entry in _controllers.entries) {
       final value = entry.value.text.trim();
-      if (value.isEmpty) continue;
+      if (value.isEmpty) { continue; }
       if (entry.key == 'sort_order') { result[entry.key] = int.tryParse(value) ?? 0; } else { result[entry.key] = value; }
     }
     if (!_isSubject && !_isMaterial) {
@@ -383,7 +383,7 @@ class _AcademicEditorState extends State<_AcademicEditor> {
       if (_isSubject || !_isMaterial) _dropdown('القسم الأكاديمي', _departmentId, widget.departments, (v) => setState(() { _departmentId = v; _subjectId = null; }), 'name_ar'),
       if (_isSubject || !_isMaterial) _dropdown('الفصل الدراسي', _semesterId, widget.semesters, (v) => setState(() { _semesterId = v; _subjectId = null; }), 'name_ar'),
       if (_isMaterial || !_isSubject) _dropdown('المقرر', _subjectId, widget.subjects.where((s) => (_departmentId == null || s['department_id']?.toString() == _departmentId) && (_semesterId == null || s['semester_id']?.toString() == _semesterId)).toList(), (v) => setState(() => _subjectId = v), 'name_ar'),
-      if (!_isSubject && !_isMaterial) DropdownButtonFormField<int>(value: _day, decoration: const InputDecoration(labelText: 'اليوم'), items: const [DropdownMenuItem(value: 0, child: Text('الأحد')), DropdownMenuItem(value: 1, child: Text('الاثنين')), DropdownMenuItem(value: 2, child: Text('الثلاثاء')), DropdownMenuItem(value: 3, child: Text('الأربعاء')), DropdownMenuItem(value: 4, child: Text('الخميس')), DropdownMenuItem(value: 5, child: Text('الجمعة')), DropdownMenuItem(value: 6, child: Text('السبت'))], onChanged: (v) => setState(() => _day = v ?? 0)),
+      if (!_isSubject && !_isMaterial) DropdownButtonFormField<int>(initialValue: _day, decoration: const InputDecoration(labelText: 'اليوم'), items: const [DropdownMenuItem(value: 0, child: Text('الأحد')), DropdownMenuItem(value: 1, child: Text('الاثنين')), DropdownMenuItem(value: 2, child: Text('الثلاثاء')), DropdownMenuItem(value: 3, child: Text('الأربعاء')), DropdownMenuItem(value: 4, child: Text('الخميس')), DropdownMenuItem(value: 5, child: Text('الجمعة')), DropdownMenuItem(value: 6, child: Text('السبت'))], onChanged: (v) => setState(() => _day = v ?? 0)),
       ..._controllers.entries.map((entry) => Padding(padding: const EdgeInsets.only(top: 10), child: TextFormField(controller: entry.value, readOnly: !_isSubject && !_isMaterial && (entry.key == 'start_time' || entry.key == 'end_time'), onTap: !_isSubject && !_isMaterial && (entry.key == 'start_time' || entry.key == 'end_time') ? () => _pickScheduleTime(entry.key) : null, decoration: InputDecoration(labelText: _label(entry.key), suffixIcon: !_isSubject && !_isMaterial && (entry.key == 'start_time' || entry.key == 'end_time') ? const Icon(Icons.access_time) : null), keyboardType: entry.key == 'sort_order' ? TextInputType.number : TextInputType.text, validator: (v) => entry.key == 'title' && (v == null || v.trim().isEmpty) ? 'العنوان مطلوب' : entry.key == 'name_ar' && (v == null || v.trim().isEmpty) ? 'اسم المادة مطلوب' : null))),
       if (_isMaterial) CheckboxListTile(value: _pinned, onChanged: (v) => setState(() => _pinned = v ?? false), contentPadding: EdgeInsets.zero, title: const Text('تثبيت المادة في الأعلى')),
       if (widget.initial != null) SwitchListTile(value: _active, onChanged: (v) => setState(() => _active = v), contentPadding: EdgeInsets.zero, title: const Text('نشط')),

@@ -51,7 +51,7 @@ class ApiService {
     }
 
     final data = decoded['data'];
-    if (data is Map<String, dynamic>) return data;
+    if (data is Map<String, dynamic>) { return data; }
     return decoded;
   }
 
@@ -139,12 +139,12 @@ class ApiService {
     // Several screens can receive 401/expire at once. Refresh tokens are single-use,
     // so all concurrent callers must await the same rotation instead of racing it.
     final inFlight = _refreshFuture;
-    if (inFlight != null) return inFlight;
+    if (inFlight != null) { return inFlight; }
 
     final future = _performRefresh(previous, refreshToken);
     _refreshFuture = future;
     return future.whenComplete(() {
-      if (identical(_refreshFuture, future)) _refreshFuture = null;
+      if (identical(_refreshFuture, future)) { _refreshFuture = null; }
     });
   }
 
@@ -254,7 +254,7 @@ class ApiService {
     if (session == null) {
       throw const ApiServiceException('تسجيل الدخول مطلوب.', statusCode: 401);
     }
-    if (session.isExpired) session = await _refreshSession(session);
+    if (session.isExpired) { session = await _refreshSession(session); }
     final request = http.MultipartRequest('POST', _uri('/admin/media'));
     request.headers['Accept'] = 'application/json';
     request.headers['Authorization'] = 'Bearer ${session.accessToken}';
