@@ -21,9 +21,116 @@ class _AccountPageState extends State<AccountPage> {
   bool _busy = false;
   bool _hideCurrent = true;
   bool _hideNext = true;
+  bool _profileBusy = false;
+  String? _email;
+  late String _displayName;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayName = widget.session.displayName;
+  }
 
   @override
   void dispose() { _current.dispose(); _next.dispose(); _confirm.dispose(); super.dispose(); }
+
+  Future<void> _editProfile() async {
+    if (_profileBusy) return;
+    setState(() => _profileBusy = true);
+    final nameController = TextEditingController(text: _displayName);
+    final emailController = TextEditingController(text: _email ?? '');
+    try {
+      final profile = await widget.api.get('/auth/staff/me');
+      final name = (profile['display_name'] ?? profile['displayName'] ?? _displayName).toString();
+      final email = (profile['email'] ?? _email ?? '').toString();
+      nameController.text = name;
+      emailController.text = email;
+      if (!mounted) return;
+      final formKey = GlobalKey<FormState>();
+      final result = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('تعديل بيانات المشرف'),
+          content: Form(
+            key: formKey,
+            child: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    autofocus: true,
+                    maxLength: 120,
+                    decoration: const InputDecoration(labelText: 'الاسم', prefixIcon: Icon(Icons.person_outline)),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'أدخل الاسم'
+                        : value.trim().length > 120 ? 'الاسم طويل جدًا' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(labelText: 'البريد الإلكتروني', prefixIcon: Icon(Icons.email_outlined)),
+                    validator: (value) {
+                      final email = value?.trim() ?? '';
+                      if (email.isEmpty) return null;
+                      return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)
+                          ? null
+                          : 'أدخل بريدًا إلكترونيًا صحيحًا';
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.pop(dialogContext, {
+                    'displayName': nameController.text.trim(),
+                    'email': emailController.text.trim(),
+                  });
+                }
+              },
+              child: const Text('حفظ التعديلات'),
+            ),
+          ],
+        ),
+      );
+      if (result == null || !mounted) return;
+      await widget.api.patch('/auth/staff/me', body: result);
+      final store = SessionStore();
+      final currentSession = await store.readIncludingExpired() ?? widget.session;
+      await store.save(AdminSession(
+        accessToken: currentSession.accessToken,
+        refreshToken: currentSession.refreshToken,
+        displayName: result['displayName']!,
+        role: currentSession.role,
+        expiresAt: currentSession.expiresAt,
+      ));
+      if (!mounted) return;
+      setState(() {
+        _displayName = result['displayName']!;
+        _email = result['email'];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث بيانات المشرف بنجاح.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر تحديث بيانات المشرف: $error')),
+        );
+      }
+    } finally {
+      nameController.dispose();
+      emailController.dispose();
+      if (mounted) setState(() => _profileBusy = false);
+    }
+  }
 
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
@@ -49,14 +156,14 @@ class _AccountPageState extends State<AccountPage> {
     const SizedBox(height: 18),
     Card(child: Stack(children: [
       Padding(padding: const EdgeInsets.fromLTRB(18, 46, 18, 18), child: Row(children: [
-        CircleAvatar(radius: 28, child: Text(widget.session.displayName.isEmpty ? '؟' : widget.session.displayName.substring(0, 1))),
+        CircleAvatar(radius: 28, child: Text(_displayName.isEmpty ? '؟' : _displayName.substring(0, 1))),
         const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(widget.session.displayName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          Text(_displayName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 4), Text('الدور: ${_roleLabel(widget.session.role)}'),
           const SizedBox(height: 4), const Text('رموز الجلسة محفوظة باستخدام التخزين الآمن على الجهاز.'),
         ])),
       ])),
-      PositionedDirectional(start: 6, top: 4, child: IconButton(tooltip: 'تعديل بيانات المشرف', onPressed: _editProfile, icon: const Icon(Icons.edit_outlined))),
+      PositionedDirectional(start: 6, top: 4, child: IconButton(tooltip: 'تعديل بيانات المشرف', onPressed: _profileBusy ? null : _editProfile, icon: _profileBusy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.edit_outlined))),
     ])),
     const SizedBox(height: 14),
     Card(child: Padding(padding: const EdgeInsets.all(18), child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

@@ -48,7 +48,6 @@ class _ContentPageState extends State<ContentPage> {
   @override
   void initState() {
     super.initState();
-    final isSuper = widget.role == AdminPermissions.superAdmin;
     _kinds = [
       _ContentKind.news,
       _ContentKind.events,
