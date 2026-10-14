@@ -1,7 +1,11 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../api_service.dart';
 import '../../admin_permissions.dart';
@@ -20,7 +24,7 @@ extension on _ContentKind {
         _ContentKind.news => 'الأخبار',
         _ContentKind.events => 'الفعاليات',
         _ContentKind.achievements => 'الإنجازات',
-        _ContentKind.announcements => 'الإعلانات',
+        _ContentKind.announcements => 'الإعلانات والإشعارات',
       };
   IconData get icon => switch (this) {
         _ContentKind.news => Icons.article_outlined,
@@ -31,9 +35,10 @@ extension on _ContentKind {
 }
 
 class ContentPage extends StatefulWidget {
-  const ContentPage({super.key, required this.api, required this.role});
+  const ContentPage({super.key, required this.api, required this.role, this.announcementsOnly = false});
   final ApiService api;
   final String role;
+  final bool announcementsOnly;
 
   @override
   State<ContentPage> createState() => _ContentPageState();
@@ -53,12 +58,14 @@ class _ContentPageState extends State<ContentPage> {
     super.initState();
     final isSuper = widget.role == AdminPermissions.superAdmin;
     final canNotify = isSuper;
-    _kinds = [
-      _ContentKind.news,
-      _ContentKind.events,
-      _ContentKind.achievements,
-      if (canNotify) _ContentKind.announcements,
-    ];
+    _kinds = widget.announcementsOnly
+        ? [_ContentKind.announcements]
+        : [
+            _ContentKind.news,
+            _ContentKind.events,
+            _ContentKind.achievements,
+            if (canNotify) _ContentKind.announcements,
+          ];
     _kind = _kinds.first;
     _load();
   }
@@ -88,6 +95,17 @@ class _ContentPageState extends State<ContentPage> {
     }).toList();
   }
 
+  String _formatArabicDate(dynamic raw) {
+    final value = DateTime.tryParse(raw?.toString() ?? '');
+    if (value == null) return raw?.toString() ?? '';
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$day/$month/${local.year}  $hour:$minute';
+  }
+
   Future<void> _edit([Map<String, dynamic>? item]) async {
     final isCreate = item == null;
     final result = await showDialog<Map<String, dynamic>>(
@@ -107,6 +125,77 @@ class _ContentPageState extends State<ContentPage> {
       await _load();
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ المحتوى: $error')));
+    }
+  }
+
+  bool _announcementCanSend(Map<String, dynamic> item) {
+    if (item['status'] != 'published') return false;
+    final now = DateTime.now();
+    final publishAt = DateTime.tryParse(item['publish_at']?.toString() ?? '')?.toLocal();
+    final expiresAt = DateTime.tryParse(item['expires_at']?.toString() ?? '')?.toLocal();
+    if (publishAt != null && publishAt.isAfter(now)) return false;
+    if (expiresAt != null && !expiresAt.isAfter(now)) return false;
+    return true;
+  }
+
+  String _announcementSendTooltip(Map<String, dynamic> item) {
+    if (item['status'] != 'published') return 'انشر الإعلان أولًا';
+    final now = DateTime.now();
+    final publishAt = DateTime.tryParse(item['publish_at']?.toString() ?? '')?.toLocal();
+    final expiresAt = DateTime.tryParse(item['expires_at']?.toString() ?? '')?.toLocal();
+    if (publishAt != null && publishAt.isAfter(now)) return 'سيُجهّز الإشعار تلقائيًا عند موعد النشر';
+    if (expiresAt != null && !expiresAt.isAfter(now)) return 'انتهت صلاحية الإعلان';
+    return 'إرسال الإعلان كإشعار';
+  }
+
+  Future<void> _approveAnnouncement(Map<String, dynamic> item) async {
+    final id = item['id']?.toString() ?? '';
+    if (id.isEmpty || item['status'] != 'draft') return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('اعتماد مسودة الإعلان؟'),
+        content: Text('سيُنشر «${item['title'] ?? 'الإعلان'}» ويصبح مؤهلًا للتجهيز عند موعد النشر. لن يُرسل إشعار فوري إذا كان موعده مستقبلًا.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('اعتماد ونشر')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.api.patch('/admin/announcements/$id', body: {'status': 'published'});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم اعتماد الإعلان ونشره.')));
+      await _load();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر اعتماد الإعلان: $error')));
+    }
+  }
+
+  Future<void> _sendAnnouncement(Map<String, dynamic> item) async {
+    final id = item['id']?.toString() ?? '';
+    if (id.isEmpty || !_announcementCanSend(item)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إرسال الإعلان كإشعار؟'),
+        content: Text('سيُجهّز «${item['title'] ?? 'الإعلان'}» للإرسال إلى الطلاب النشطين المطابقين للقسم والمستوى المحددين. هذه العملية لا تنشئ استهدافات مكررة عند تكرارها.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('تأكيد الإرسال')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final response = await widget.api.post('/admin/notifications/send', body: {'announcementId': id});
+      final data = response['data'] is Map ? Map<String, dynamic>.from(response['data'] as Map) : response;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تجهيز الإشعار. المستهدفون: ${data['targets'] ?? '—'}، المستهدفون الجدد: ${data['newTargets'] ?? '—'}.')));
+      await _load();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الإشعار: $error')));
     }
   }
 
@@ -147,7 +236,7 @@ class _ContentPageState extends State<ContentPage> {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('إدارة المحتوى', style: theme.textTheme.headlineMedium?.copyWith(fontSize: 28, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            Text('إدارة السجلات المنشورة مباشرة عبر واجهة الخادم المعتمدة.', style: theme.textTheme.bodyMedium),
+            Text('إدارة الأخبار والفعاليات والإنجازات، وإنشاء الإعلانات وتجهيزها كإشعارات للطلاب من مكان واحد.', style: theme.textTheme.bodyMedium),
           ]),
           if (canEdit) FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('إضافة محتوى')),
         ]),
@@ -221,9 +310,33 @@ class _ContentPageState extends State<ContentPage> {
                 Wrap(spacing: 8, runSpacing: 6, children: [
                   Chip(label: Text((item['status'] ?? 'draft') == 'published' ? 'منشور' : 'مسودة'), visualDensity: VisualDensity.compact),
                   if ((item['category'] ?? '').toString().isNotEmpty) Chip(label: Text(item['category'].toString()), visualDensity: VisualDensity.compact),
-                  if ((item['created_at'] ?? '').toString().isNotEmpty) Text(item['created_at'].toString(), style: theme.textTheme.bodySmall),
+                  if (_kind == _ContentKind.announcements && item['targets'] != null)
+                    Chip(avatar: const Icon(Icons.people_alt_outlined, size: 16), label: Text('المستهدفون ${item['targets']}'), visualDensity: VisualDensity.compact),
+                  if (_kind == _ContentKind.announcements && item['reads'] != null)
+                    Chip(avatar: const Icon(Icons.mark_email_read_outlined, size: 16), label: Text('المقروء ${item['reads']}'), visualDensity: VisualDensity.compact),
+                  if ((item['publish_at'] ?? '').toString().isNotEmpty)
+                    Text('موعد النشر: ${_formatArabicDate(item['publish_at'])}', style: theme.textTheme.bodySmall),
+                  if ((item['event_at'] ?? '').toString().isNotEmpty)
+                    Text('موعد الفعالية: ${_formatArabicDate(item['event_at'])}', style: theme.textTheme.bodySmall),
+                  if ((item['achieved_at'] ?? '').toString().isNotEmpty)
+                    Text('تاريخ الإنجاز: ${_formatArabicDate(item['achieved_at'])}', style: theme.textTheme.bodySmall),
+                  if ((item['created_at'] ?? '').toString().isNotEmpty) Text('تاريخ الإضافة: ${_formatArabicDate(item['created_at'])}', style: theme.textTheme.bodySmall),
                 ]),
               ])),
+              if (_kind == _ContentKind.announcements && item['status'] == 'draft')
+                IconButton(
+                  tooltip: 'اعتماد ونشر المسودة',
+                  onPressed: canEdit ? () => _approveAnnouncement(item) : null,
+                  icon: const Icon(Icons.fact_check_outlined),
+                ),
+              if (_kind == _ContentKind.announcements && item['status'] == 'published')
+                IconButton(
+                  tooltip: _announcementSendTooltip(item),
+                  onPressed: _announcementCanSend(item) ? () => _sendAnnouncement(item) : null,
+                  icon: Icon(
+                    _announcementCanSend(item) ? Icons.send_outlined : Icons.schedule_outlined,
+                  ),
+                ),
               if (canEdit) PopupMenuButton<String>(
                 tooltip: 'إجراءات السجل',
                 onSelected: (value) { if (value == 'edit') _edit(item); if (value == 'delete') _delete(item); },
@@ -267,29 +380,43 @@ class _ContentEditorState extends State<_ContentEditor> {
   late final TextEditingController _targetSemester;
   late final TextEditingController _highlightsTitle;
   late final TextEditingController _highlights;
-  late String _status;
+
   bool _busy = false;
   bool _uploadingImage = false;
+  final ImagePicker _imagePicker = ImagePicker();
   String? _imageError;
 
   Future<void> _pickAndUploadImage() async {
-    final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'], withData: true);
-    if (picked == null || picked.files.isEmpty || !mounted) return;
-    final file = picked.files.single;
-    final bytes = file.bytes;
-    if (bytes == null || bytes.isEmpty) { setState(() => _imageError = 'تعذر قراءة الصورة من الجهاز.'); return; }
-    if (bytes.length > 3 * 1024 * 1024) { setState(() => _imageError = 'الحد الأقصى للصورة 3 ميغابايت.'); return; }
-    final ext = (file.extension ?? '').toLowerCase();
-    final type = switch (ext) { 'jpg' || 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', _ => '' };
-    if (type.isEmpty) { setState(() => _imageError = 'نوع الصورة غير مدعوم.'); return; }
+    String filename; Uint8List? selectedBytes;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+      if (result == null || result.files.isEmpty || !mounted) return;
+      filename = result.files.single.name; selectedBytes = result.files.single.bytes;
+    } else {
+      final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 88, maxWidth: 1800);
+      if (picked == null || !mounted) return;
+      filename = picked.name; selectedBytes = await picked.readAsBytes();
+    }
+    final bytes = selectedBytes;
+    if (bytes == null || bytes.isEmpty) { setState(() => _imageError = 'تعذر قراءة الصورة من المعرض.'); return; }
+    if (bytes.length > 3 * 1024 * 1024) { setState(() => _imageError = 'الحد الأقصى للصورة 3 ميغابايت. اختر صورة أصغر.'); return; }
+    final ext = filename.split('.').last.toLowerCase();
+    final type = switch (ext) { 'jpg' || 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', _ => 'image/jpeg' };
     setState(() { _uploadingImage = true; _imageError = null; });
     try {
-      final uploaded = await widget.api.uploadImage(bytes: bytes, filename: file.name, contentType: type);
+      final uploaded = await widget.api.uploadImage(bytes: bytes, filename: filename, contentType: type);
       final url = uploaded['url']?.toString() ?? '';
       if (url.isEmpty) throw const ApiServiceException('لم يُرجع الخادم رابط الصورة.');
       if (mounted) setState(() => _imageUrl.text = url);
     } catch (e) { if (mounted) setState(() => _imageError = e.toString()); }
     finally { if (mounted) setState(() => _uploadingImage = false); }
+  }
+
+  Future<void> _pickDate(TextEditingController controller) async {
+    final existing = DateTime.tryParse(controller.text.trim());
+    final now = DateTime.now();
+    final picked = await showDatePicker(context: context, initialDate: existing ?? now, firstDate: DateTime(2000), lastDate: DateTime(2100), helpText: 'اختر التاريخ');
+    if (picked != null) setState(() => controller.text = DateTime(picked.year, picked.month, picked.day, 12).toIso8601String());
   }
 
   @override
@@ -319,7 +446,7 @@ class _ContentEditorState extends State<_ContentEditor> {
       try { final parsed = jsonDecode(rawHighlights); if (parsed is List) highlightsText = parsed.join('\n'); } catch (_) { /* Keep the original value visible for manual correction. */ }
     }
     _highlights = TextEditingController(text: highlightsText);
-    _status = item['status']?.toString() ?? 'draft';
+
   }
 
   @override
@@ -332,13 +459,50 @@ class _ContentEditorState extends State<_ContentEditor> {
     if (!_formKey.currentState!.validate()) return;
     final title = _title.text.trim();
     final body = _body.text.trim();
-    final payload = <String, dynamic>{'title': title, 'status': _status};
+    // Use a predictable local calendar date when the administrator leaves the
+    // date empty; serialize it as an ISO timestamp only at the API boundary.
+    final today = DateTime.now();
+    final dateController = widget.kind == _ContentKind.events ? _eventAt : widget.kind == _ContentKind.achievements ? _achievedAt : _publishAt;
+    if (dateController.text.trim().isEmpty && widget.kind != _ContentKind.announcements) {
+      // Keep the selected calendar day stable across time zones. Noon local time
+      // avoids an ISO midnight timestamp being interpreted as the previous day.
+      dateController.text = DateTime(today.year, today.month, today.day, 12).toIso8601String();
+    }
+    final dateText = dateController.text.trim();
+    final parsedDate = DateTime.tryParse(dateText)?.toLocal();
+    final nowLocal = DateTime.now();
+    final futureDate = parsedDate != null && DateTime(parsedDate.year, parsedDate.month, parsedDate.day).isAfter(DateTime(nowLocal.year, nowLocal.month, nowLocal.day));
+
+    // Reject contradictory date ranges before writing them to the API.
+    final publishDate = DateTime.tryParse(_publishAt.text.trim());
+    final expiryDate = DateTime.tryParse(_expiresAt.text.trim());
+    if (widget.kind == _ContentKind.news && publishDate != null && expiryDate != null && !expiryDate.isAfter(publishDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تاريخ انتهاء الخبر يجب أن يأتي بعد تاريخ النشر.')));
+      return;
+    }
+    final eventDate = DateTime.tryParse(_eventAt.text.trim());
+    final eventEndDate = DateTime.tryParse(_endAt.text.trim());
+    if (widget.kind == _ContentKind.events && eventDate != null && eventEndDate != null && eventEndDate.isBefore(eventDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نهاية الفعالية لا يمكن أن تسبق موعد بدايتها.')));
+      return;
+    }
+    if (widget.kind == _ContentKind.announcements && publishDate != null && expiryDate != null && !expiryDate.isAfter(publishDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('انتهاء صلاحية الإعلان يجب أن يكون بعد موعد نشره.')));
+      return;
+    }
+
+    final payload = <String, dynamic>{'title': title, 'status': widget.kind == _ContentKind.events ? 'published' : futureDate ? 'draft' : 'published'};
+    // Keep the editor's category untouched. The upcoming label is derived for the
+    // saved event only, so changing a date later cannot erase a category the user entered.
+    final eventCategory = widget.kind == _ContentKind.events && futureDate
+        ? 'قريباً'
+        : _category.text.trim();
     switch (widget.kind) {
       case _ContentKind.news:
         payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'publish_at': _publishAt.text.trim(), 'expires_at': _expiresAt.text.trim()});
         break;
       case _ContentKind.events:
-        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'location': _location.text.trim(), 'event_at': _eventAt.text.trim(), 'end_at': _endAt.text.trim()});
+        payload.addAll({'body': body, 'category': eventCategory, 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'location': _location.text.trim(), 'event_at': _eventAt.text.trim(), 'end_at': _endAt.text.trim()});
         break;
       case _ContentKind.achievements:
         payload.addAll({'description': body, 'intro': body, 'highlights_title': _highlightsTitle.text.trim(), 'highlights': jsonEncode(_highlights.text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList()), 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _imageUrl.text.trim(), 'achieved_at': _achievedAt.text.trim()});
@@ -347,7 +511,6 @@ class _ContentEditorState extends State<_ContentEditor> {
         payload.addAll({'body': body, 'type': _type.text.trim().isEmpty ? 'general' : _type.text.trim(), 'target_department_id': _targetDepartment.text.trim().isEmpty ? null : _targetDepartment.text.trim(), 'target_semester_id': _targetSemester.text.trim().isEmpty ? null : _targetSemester.text.trim(), 'publish_at': _publishAt.text.trim().isEmpty ? null : _publishAt.text.trim(), 'expires_at': _expiresAt.text.trim().isEmpty ? null : _expiresAt.text.trim()});
         break;
     }
-    setState(() => _busy = true);
     Navigator.of(context).pop(payload);
   }
 
@@ -360,28 +523,21 @@ class _ContentEditorState extends State<_ContentEditor> {
       TextFormField(controller: _body, minLines: 3, maxLines: 7, decoration: InputDecoration(labelText: widget.kind == _ContentKind.achievements ? 'الوصف' : 'المحتوى'), validator: (v) => v == null || v.trim().isEmpty ? 'المحتوى مطلوب' : null),
       if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
         const SizedBox(height: 12),
-        TextFormField(controller: _imageUrl, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'رابط الصورة (اختياري)', hintText: 'https://…')),
-        const SizedBox(height: 8),
-        Align(alignment: AlignmentDirectional.centerStart, child: OutlinedButton.icon(onPressed: _uploadingImage ? null : _pickAndUploadImage, icon: _uploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file_outlined), label: Text(_uploadingImage ? 'جارٍ رفع الصورة…' : 'اختيار صورة ورفعها'))),
-        if (_imageError != null) Align(alignment: AlignmentDirectional.centerStart, child: Text(_imageError!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-      ],
-      if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
-        const SizedBox(height: 12),
         TextFormField(controller: _category, decoration: InputDecoration(labelText: widget.kind == _ContentKind.achievements ? 'شارة الإنجاز (اختياري)' : 'التصنيف (اختياري)')),
         const SizedBox(height: 12),
         TextFormField(controller: _publisher, decoration: const InputDecoration(labelText: 'اسم الناشر (اختياري)')),
       ],
       if (widget.kind == _ContentKind.news) ...[
-        const SizedBox(height: 12), TextFormField(controller: _publishAt, decoration: const InputDecoration(labelText: 'تاريخ النشر بصيغة ISO (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _expiresAt, decoration: const InputDecoration(labelText: 'تاريخ انتهاء الصلاحية بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), _DateField(controller: _publishAt, label: 'تاريخ النشر', onTap: () => _pickDate(_publishAt), onClear: () => setState(() => _publishAt.clear())),
+        const SizedBox(height: 12), _DateField(controller: _expiresAt, label: 'تاريخ انتهاء الصلاحية', onTap: () => _pickDate(_expiresAt), onClear: () => setState(() => _expiresAt.clear())),
       ],
       if (widget.kind == _ContentKind.events) ...[
         const SizedBox(height: 12), TextFormField(controller: _location, decoration: const InputDecoration(labelText: 'المكان (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _eventAt, decoration: const InputDecoration(labelText: 'موعد الفعالية بصيغة ISO (اختياري، مثل 2026-11-05T10:00:00Z)')),
-        const SizedBox(height: 12), TextFormField(controller: _endAt, decoration: const InputDecoration(labelText: 'نهاية الفعالية بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), _DateField(controller: _eventAt, label: 'موعد الفعالية', onTap: () => _pickDate(_eventAt), onClear: () => setState(() => _eventAt.clear())),
+        const SizedBox(height: 12), _DateField(controller: _endAt, label: 'نهاية الفعالية', onTap: () => _pickDate(_endAt), onClear: () => setState(() => _endAt.clear())),
       ],
       if (widget.kind == _ContentKind.achievements) ...[
-        const SizedBox(height: 12), TextFormField(controller: _achievedAt, decoration: const InputDecoration(labelText: 'تاريخ الإنجاز بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), _DateField(controller: _achievedAt, label: 'تاريخ الإنجاز', onTap: () => _pickDate(_achievedAt), onClear: () => setState(() => _achievedAt.clear())),
         const SizedBox(height: 12), TextFormField(controller: _highlightsTitle, decoration: const InputDecoration(labelText: 'عنوان أبرز المحاور')),
         const SizedBox(height: 12), TextFormField(controller: _highlights, minLines: 2, maxLines: 6, decoration: const InputDecoration(labelText: 'أبرز المحاور (كل محور في سطر)')),
       ],
@@ -389,12 +545,49 @@ class _ContentEditorState extends State<_ContentEditor> {
         const SizedBox(height: 12), TextFormField(controller: _type, decoration: const InputDecoration(labelText: 'نوع الإعلان (مثل general أو urgent)')),
         const SizedBox(height: 12), TextFormField(controller: _targetDepartment, decoration: const InputDecoration(labelText: 'معرّف القسم المستهدف (اختياري)')),
         const SizedBox(height: 12), TextFormField(controller: _targetSemester, decoration: const InputDecoration(labelText: 'معرّف الفصل المستهدف (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _publishAt, decoration: const InputDecoration(labelText: 'موعد النشر بصيغة ISO (اختياري)')),
-        const SizedBox(height: 12), TextFormField(controller: _expiresAt, decoration: const InputDecoration(labelText: 'موعد انتهاء الإعلان بصيغة ISO (اختياري)')),
+        const SizedBox(height: 12), _DateField(controller: _publishAt, label: 'موعد النشر', onTap: () => _pickDate(_publishAt), onClear: () => setState(() => _publishAt.clear())),
+        const SizedBox(height: 12), _DateField(controller: _expiresAt, label: 'موعد انتهاء الإشعار', onTap: () => _pickDate(_expiresAt), onClear: () => setState(() => _expiresAt.clear())),
       ],
-      const SizedBox(height: 12),
-      DropdownButtonFormField<String>(value: _status, decoration: const InputDecoration(labelText: 'حالة النشر'), items: const [DropdownMenuItem(value: 'draft', child: Text('مسودة')), DropdownMenuItem(value: 'published', child: Text('منشور'))], onChanged: (v) { if (v != null) setState(() => _status = v); }),
+      if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
+        const SizedBox(height: 18),
+        Align(alignment: AlignmentDirectional.centerStart, child: Text('الصورة (اختياري)', style: Theme.of(context).textTheme.titleSmall)),
+        const SizedBox(height: 8),
+        if (_imageUrl.text.isNotEmpty) ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_imageUrl.text, height: 150, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox(height: 80, child: Center(child: Text('تعذرت معاينة الصورة الحالية.'))))),
+        Align(alignment: AlignmentDirectional.centerStart, child: OutlinedButton.icon(onPressed: _uploadingImage ? null : _pickAndUploadImage, icon: _uploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_library_outlined), label: Text(_uploadingImage ? 'جارٍ رفع الصورة…' : 'اختيار صورة من المعرض'))),
+        if (_imageError != null) Align(alignment: AlignmentDirectional.centerStart, child: Text(_imageError!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+      ],
     ])))),
     actions: [TextButton(onPressed: (_busy || _uploadingImage) ? null : () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: (_busy || _uploadingImage) ? null : _save, child: const Text('حفظ'))],
+  );
+}
+
+
+class _DateField extends StatelessWidget {
+  const _DateField({required this.controller, required this.label, required this.onTap, required this.onClear});
+  final TextEditingController controller;
+  final String label;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+
+  String _displayDate() {
+    final value = DateTime.tryParse(controller.text.trim());
+    if (value == null) return 'اختر من التقويم';
+    return '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: InputDecorator(
+      decoration: InputDecoration(
+        labelText: '$label (اختياري)',
+        suffixIcon: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (controller.text.trim().isNotEmpty) IconButton(tooltip: 'مسح التاريخ', onPressed: onClear, icon: const Icon(Icons.close)),
+          const Padding(padding: EdgeInsetsDirectional.only(end: 12), child: Icon(Icons.calendar_month_outlined)),
+        ]),
+      ),
+      child: Text(_displayDate(), style: TextStyle(color: controller.text.trim().isEmpty ? Theme.of(context).hintColor : null)),
+    ),
   );
 }

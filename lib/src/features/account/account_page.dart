@@ -21,6 +21,31 @@ class _AccountPageState extends State<AccountPage> {
   bool _busy = false;
   bool _hideCurrent = true;
   bool _hideNext = true;
+  bool _profileBusy = false;
+
+  Future<void> _editProfile() async {
+    String currentEmail = '';
+    try { final current = await widget.api.get('/auth/staff/me'); currentEmail = (current['data'] is Map ? current['data']['email'] : current['email'])?.toString() ?? ''; } catch (_) {}
+    if (!mounted) return;
+    final name = TextEditingController(text: widget.session.displayName);
+    final email = TextEditingController(text: currentEmail);
+    final key = GlobalKey<FormState>();
+    final values = await showDialog<Map<String, String>>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('تعديل بيانات المشرف'),
+      content: SizedBox(width: 420, child: Form(key: key, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextFormField(controller: name, decoration: const InputDecoration(labelText: 'الاسم الظاهر'), validator: (v) => v == null || v.trim().isEmpty ? 'الاسم مطلوب' : null),
+        const SizedBox(height: 12),
+        TextFormField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), validator: (v) => v != null && v.trim().isNotEmpty && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim()) ? 'البريد الإلكتروني غير صالح' : null),
+      ]))),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(dialogContext, {'displayName': name.text.trim(), 'email': email.text.trim()}); }, child: const Text('حفظ'))],
+    ));
+    name.dispose(); email.dispose();
+    if (values == null || !mounted) return;
+    setState(() => _profileBusy = true);
+    try { await widget.api.patch('/auth/staff/me', body: values); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ البيانات. سجّل الدخول مجددًا لتحديث الاسم الظاهر في الجلسة الحالية.'))); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث البيانات: $e'))); }
+    finally { if (mounted) setState(() => _profileBusy = false); }
+  }
 
   @override
   void dispose() { _current.dispose(); _next.dispose(); _confirm.dispose(); super.dispose(); }
@@ -47,7 +72,8 @@ class _AccountPageState extends State<AccountPage> {
     const SizedBox(height: 6),
     const Text('بيانات الجلسة الحالية وأمان حساب الإدارة.'),
     const SizedBox(height: 18),
-    Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [
+    Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      IconButton(tooltip: 'تعديل بيانات المشرف', onPressed: _profileBusy ? null : _editProfile, icon: _profileBusy ? const SizedBox(width: 18,height: 18,child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.edit_outlined)),
       CircleAvatar(radius: 28, child: Text(widget.session.displayName.isEmpty ? '؟' : widget.session.displayName.substring(0, 1))),
       const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(widget.session.displayName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),

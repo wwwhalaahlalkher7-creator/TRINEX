@@ -51,11 +51,11 @@ class _StudentsPageState extends State<StudentsPage> {
   ]);}
 }
 class _StudentForm extends StatefulWidget{const _StudentForm({this.student,required this.departments,required this.semesters});final Map<String,dynamic>? student;final List<Map<String,dynamic>> departments,semesters;@override State<_StudentForm> createState()=>_StudentFormState();}
-class _StudentFormState extends State<_StudentForm>{final _form=GlobalKey<FormState>();late final TextEditingController _number,_name,_email;String? _dept,_semester;late bool _active;
- @override void initState(){super.initState();final s=widget.student;_number=TextEditingController(text:s?['student_number']?.toString()??'');_name=TextEditingController(text:s?['full_name']?.toString()??'');_email=TextEditingController(text:s?['email']?.toString()??'');_dept=s?['department_id']?.toString();_semester=s?['current_semester_id']?.toString();_active=s==null||s['active']==1||s['active']==true;}
- @override void dispose(){_number.dispose();_name.dispose();_email.dispose();super.dispose();}
+class _StudentFormState extends State<_StudentForm>{final _form=GlobalKey<FormState>();late final TextEditingController _number,_name;String? _dept;late bool _active;
+ @override void initState(){super.initState();final s=widget.student;_number=TextEditingController(text:s?['student_number']?.toString()??'');_name=TextEditingController(text:s?['full_name']?.toString()??'');_dept=s?['department_id']?.toString();_active=s==null||s['active']==1||s['active']==true;}
+ @override void dispose(){_number.dispose();_name.dispose();super.dispose();}
  List<DropdownMenuItem<String>> _opts(List<Map<String,dynamic>> rows)=>rows.map((r)=>DropdownMenuItem(value:r['id'].toString(),child:Text(_rowName(r),overflow:TextOverflow.ellipsis))).toList();
- void _save(){if(!_form.currentState!.validate()||_dept==null)return;Navigator.pop(context,<String,dynamic>{'student_number':_number.text.trim(),'full_name':_name.text.trim(),'email':_email.text.trim().isEmpty?null:_email.text.trim(),'department_id':_dept,'current_semester_id':_semester,'active':_active?1:0});}
+ void _save(){if(!_form.currentState!.validate()||_dept==null)return;Navigator.pop(context,<String,dynamic>{'student_number':_number.text.trim(),'full_name':_name.text.trim(),'department_id':_dept,'active':_active?1:0});}
  @override
  Widget build(BuildContext context) => AlertDialog(
    title: Text(widget.student == null ? 'إضافة طالب' : 'تعديل بيانات الطالب'),
@@ -69,9 +69,8 @@ class _StudentFormState extends State<_StudentForm>{final _form=GlobalKey<FormSt
            children: [
              TextFormField(controller: _number, decoration: const InputDecoration(labelText: 'الرقم الجامعي *'), validator: (v) => v == null || !RegExp(r'^[0-9]+(?:-[0-9]+)?$').hasMatch(v.trim()) ? 'صيغة الرقم الجامعي غير صالحة' : null),
              TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'الاسم الكامل *'), validator: (v) => v == null || v.trim().isEmpty ? 'الاسم مطلوب' : null),
-             TextFormField(controller: _email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), keyboardType: TextInputType.emailAddress, validator: (v) => v != null && v.trim().isNotEmpty && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim()) ? 'البريد الإلكتروني غير صالح' : null),
              DropdownButtonFormField<String>(value: _dept, isExpanded: true, decoration: const InputDecoration(labelText: 'القسم *'), items: _opts(widget.departments), onChanged: (v) => setState(() => _dept = v), validator: (v) => v == null ? 'اختر القسم' : null),
-             DropdownButtonFormField<String>(value: _semester, isExpanded: true, decoration: const InputDecoration(labelText: 'المستوى الدراسي'), items: [const DropdownMenuItem<String>(value: null, child: Text('غير محدد')), ..._opts(widget.semesters)], onChanged: (v) => setState(() => _semester = v)),
+             const Align(alignment: AlignmentDirectional.centerStart, child: Text('يحدد الطالب بريده الإلكتروني ومستواه الدراسي من داخل التطبيق بعد التسجيل.')) ,
              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('الحساب نشط'), value: _active, onChanged: (v) => setState(() => _active = v)),
            ],
          ),
@@ -83,7 +82,7 @@ class _StudentFormState extends State<_StudentForm>{final _form=GlobalKey<FormSt
 }
 
 class StaffPage extends StatefulWidget{const StaffPage({super.key,required this.api,required this.currentRole});final ApiService api;final String currentRole;@override State<StaffPage> createState()=>_StaffPageState();}
-class _StaffPageState extends State<StaffPage>{List<Map<String,dynamic>> _staff=[];bool _busy=false;String? _error;static const roles={'super_admin':'Super Admin','content_manager':'Editor','academic_manager':'Academic Admin'};
+class _StaffPageState extends State<StaffPage>{List<Map<String,dynamic>> _staff=[];bool _busy=false;String? _error;static const roles={'super_admin':'مدير النظام','content_manager':'مدير المحتوى','academic_manager':'مدير الشؤون الأكاديمية'};
  @override void initState(){super.initState();_load();}
  Future<void> _load()async{setState(() { _busy=true; _error=null; });try{final r=await widget.api.get('/admin/staff');if(mounted)setState(()=>_staff=_asRows(r['data']));}catch(e){if(mounted)setState(()=>_error=e.toString());}finally{if(mounted)setState(()=>_busy=false);}}
  void _msg(String s,{bool bad=false}){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s),backgroundColor:bad?Theme.of(context).colorScheme.error:null));}
@@ -112,7 +111,7 @@ class _StaffFormState extends State<_StaffForm>{final _form=GlobalKey<FormState>
              TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'الاسم الظاهر *'), validator: (v) => v == null || v.trim().isEmpty ? 'الاسم مطلوب' : null),
              TextFormField(controller: _email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), keyboardType: TextInputType.emailAddress),
              TextFormField(controller: _password, decoration: InputDecoration(labelText: widget.member == null ? 'كلمة المرور (8 أحرف على الأقل) *' : 'كلمة مرور جديدة (اختياري)'), obscureText: true, validator: (v) => widget.member == null && (v == null || v.length < 8) ? 'كلمة المرور مطلوبة وبحد أدنى 8 أحرف' : v != null && v.isNotEmpty && v.length < 8 ? '8 أحرف على الأقل' : null),
-             DropdownButtonFormField<String>(value: _role, isExpanded: true, decoration: const InputDecoration(labelText: 'الدور'), items: const [DropdownMenuItem(value: 'super_admin', child: Text('Super Admin')), DropdownMenuItem(value: 'content_manager', child: Text('Editor')), DropdownMenuItem(value: 'academic_manager', child: Text('Academic Admin'))], onChanged: (v) { if (v != null) setState(() => _role = v); }),
+             DropdownButtonFormField<String>(value: _role, isExpanded: true, decoration: const InputDecoration(labelText: 'الدور'), items: const [DropdownMenuItem(value: 'super_admin', child: Text('مدير النظام')), DropdownMenuItem(value: 'content_manager', child: Text('مدير المحتوى')), DropdownMenuItem(value: 'academic_manager', child: Text('مدير الشؤون الأكاديمية'))], onChanged: (v) { if (v != null) setState(() => _role = v); }),
              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('الحساب نشط'), value: _active, onChanged: (v) => setState(() => _active = v)),
              if (widget.member != null) const Text('اترك كلمة المرور فارغة للإبقاء على الحالية.'),
            ],

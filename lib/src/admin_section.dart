@@ -10,7 +10,6 @@ enum AdminSection {
   schedule('الجداول', Icons.calendar_month_outlined),
   chatReports('بلاغات الدردشة', Icons.flag_outlined),
   notifications('الإشعارات', Icons.notifications_active_outlined),
-  media('رفع الوسائط', Icons.perm_media_outlined),
   security('الأمان وسجل التدقيق', Icons.shield_outlined),
   eino('مراقبة إينو', Icons.monitor_heart_outlined),
   settings('الإعدادات', Icons.settings_outlined),

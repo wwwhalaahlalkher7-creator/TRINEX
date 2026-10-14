@@ -141,3 +141,14 @@ See [`docs/PHASE8_AUDIT.md`](docs/PHASE8_AUDIT.md) for the security/integration 
 - These are application-observed operational metrics, not Cloudflare account billing, Worker CPU-time, or provider-wide storage analytics. Exact account usage requires a separately authorized Cloudflare Analytics/API integration.
 - The admin navigation no longer includes the standalone moderation page or assignable staff moderator role. Student moderators are granted/revoked from the Students page.
 - Backend migration `0040_student_moderators_and_resource_usage.sql` is required before deploying the updated Worker or app clients. See `docs/USAGE_ANALYTICS_RESOURCE_METRICS_AND_STUDENT_MODERATION.md`.
+
+
+## October 2026 UX integration updates
+- Student creation no longer asks for student-owned email or semester fields; the backend keeps existing values when editing because these fields are omitted from the patch payload.
+- Administrative role names are presented in Arabic while stable role IDs remain unchanged for API authorization.
+- Content editor now uses a calendar date picker, gallery selection on mobile and file selection on desktop, image preview, and inferred publication state.
+- Added a staff self-profile update endpoint for display name and email, with server-side validation and duplicate-email protection.
+- Cloudflare scheduled handler promotes dated news and achievements when their publish date arrives; future events can be returned to clients and carry a “قريباً” label in the student app.
+- Removed the standalone media-upload page from admin navigation; media selection is embedded in the content editor.
+
+Build verification note: backend syntax and repository regression checks passed in the supplied source environment. Flutter SDK was not available here, so Android/Windows builds and Dart analyzer were not run.

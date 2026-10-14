@@ -9,8 +9,6 @@ import 'features/security/eino_monitor_page.dart';
 import 'features/content/content_page.dart';
 import 'features/academic/academic_page.dart';
 import 'features/users/users_page.dart';
-import 'features/notifications/notifications_page.dart';
-import 'features/media/media_page.dart';
 import 'features/security/security_page.dart';
 import 'features/account/account_page.dart';
 import 'features/analytics/analytics_page.dart';
@@ -147,9 +145,7 @@ class _AdminShellState extends State<AdminShell> {
       case AdminSection.eino:
         return EinoMonitorPage(api: widget.api);
       case AdminSection.notifications:
-        return NotificationsPage(api: widget.api);
-      case AdminSection.media:
-        return MediaPage(api: widget.api);
+        return ContentPage(api: widget.api, role: _session!.role, announcementsOnly: true);
       case AdminSection.content:
         return ContentPage(api: widget.api, role: _session!.role);
       case AdminSection.students:
@@ -159,7 +155,7 @@ class _AdminShellState extends State<AdminShell> {
       case AdminSection.materials:
         return AcademicPage(api: widget.api, initialTab: 1);
       case AdminSection.schedule:
-        return AcademicPage(api: widget.api, initialTab: 2);
+        return AcademicPage(api: widget.api, initialTab: 0, scheduleOnly: true);
       case AdminSection.security:
         return SecurityPage(api: widget.api);
       case AdminSection.settings:

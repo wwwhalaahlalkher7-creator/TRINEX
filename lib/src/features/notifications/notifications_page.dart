@@ -85,9 +85,36 @@ class _NotificationsPageState extends State<NotificationsPage> {
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر اعتماد المسودة: $e'))); }
   }
 
+  bool _canSend(Map<String, dynamic> item) {
+    if (item['status'] != 'published') return false;
+    final now = DateTime.now();
+    final publishAt = DateTime.tryParse(item['publish_at']?.toString() ?? '')?.toLocal();
+    final expiresAt = DateTime.tryParse(item['expires_at']?.toString() ?? '')?.toLocal();
+    if (publishAt != null && publishAt.isAfter(now)) return false;
+    if (expiresAt != null && !expiresAt.isAfter(now)) return false;
+    return true;
+  }
+
+  String _sendReason(Map<String, dynamic> item) {
+    if (item['status'] != 'published') return 'اعتمد المسودة وانشرها أولًا';
+    final now = DateTime.now();
+    final publishAt = DateTime.tryParse(item['publish_at']?.toString() ?? '')?.toLocal();
+    final expiresAt = DateTime.tryParse(item['expires_at']?.toString() ?? '')?.toLocal();
+    if (publishAt != null && publishAt.isAfter(now)) return 'سيصبح الإشعار جاهزًا عند حلول موعد النشر';
+    if (expiresAt != null && !expiresAt.isAfter(now)) return 'انتهت صلاحية هذا الإشعار';
+    return 'إرسال / تحديث الاستهداف';
+  }
+
+  String _statusLabel(dynamic status) => switch (status?.toString()) {
+    'published' => 'منشور',
+    'draft' => 'مسودة',
+    'archived' => 'مؤرشف',
+    _ => 'غير محدد',
+  };
+
   Future<void> _send(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
-    if (id.isEmpty || item['status'] != 'published') return;
+    if (id.isEmpty || !_canSend(item)) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -145,7 +172,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(item['title']?.toString() ?? 'إعلان بلا عنوان', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 5),
-                  Text('النوع: ${item['type'] ?? 'عام'}  •  الحالة: ${item['status'] ?? 'غير محددة'}'),
+                  Text('النوع: ${item['type'] ?? 'عام'}  •  الحالة: ${_statusLabel(item['status'])}'),
                   const SizedBox(height: 5),
                   Text('المستهدفون: ${item['targets'] ?? 0}  •  قرؤوا: ${item['reads'] ?? 0}'),
                   if ((item['publish_at'] ?? '').toString().isNotEmpty) Text('موعد النشر: ${item['publish_at']}'),
@@ -157,10 +184,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   OutlinedButton.icon(onPressed: () => _editDraft(item), icon: const Icon(Icons.edit_outlined), label: const Text('تحرير المسودة')),
                   FilledButton.tonalIcon(onPressed: () => _approveDraft(item), icon: const Icon(Icons.fact_check_outlined), label: const Text('اعتماد ونشر')),
                 ],
-                FilledButton.tonalIcon(
-                  onPressed: item['status'] == 'published' && !_sending.contains(item['id']?.toString()) ? () => _send(item) : null,
-                  icon: _sending.contains(item['id']?.toString()) ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_outlined),
-                  label: const Text('إرسال / تحديث الاستهداف'),
+                Tooltip(
+                  message: _sendReason(item),
+                  child: FilledButton.tonalIcon(
+                    onPressed: _canSend(item) && !_sending.contains(item['id']?.toString()) ? () => _send(item) : null,
+                    icon: _sending.contains(item['id']?.toString()) ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_outlined),
+                    label: Text(_sendReason(item)),
+                  ),
                 ),
               ]),
             ]))),
