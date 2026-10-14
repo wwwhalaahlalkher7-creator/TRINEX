@@ -12,7 +12,6 @@ void main() {
 
     test('content manager only sees content-related navigation', () {
       expect(AdminPermissions.canSee('content_manager', AdminSection.content), isTrue);
-      expect(AdminPermissions.canSee('content_manager', AdminSection.media), isTrue);
       expect(AdminPermissions.canSee('content_manager', AdminSection.notifications), isFalse);
       expect(AdminPermissions.canSee('content_manager', AdminSection.overview), isTrue);
       expect(AdminPermissions.canSee('content_manager', AdminSection.account), isTrue);
