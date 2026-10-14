@@ -51,8 +51,6 @@ class _ContentPageState extends State<ContentPage> {
   @override
   void initState() {
     super.initState();
-    final isSuper = widget.role == AdminPermissions.superAdmin;
-    final canNotify = isSuper;
     _kinds = [
       _ContentKind.news,
       _ContentKind.events,
@@ -269,7 +267,6 @@ class _ContentEditorState extends State<_ContentEditor> {
   late final TextEditingController _targetSemester;
   late final TextEditingController _highlightsTitle;
   late final TextEditingController _highlights;
-  late String _status;
   bool _busy = false;
   bool _uploadingImage = false;
   String? _imageError;
@@ -338,7 +335,6 @@ class _ContentEditorState extends State<_ContentEditor> {
       try { final parsed = jsonDecode(rawHighlights); if (parsed is List) highlightsText = parsed.join('\n'); } catch (_) { /* Keep the original value visible for manual correction. */ }
     }
     _highlights = TextEditingController(text: highlightsText);
-    _status = item['status']?.toString() ?? 'draft';
   }
 
   @override

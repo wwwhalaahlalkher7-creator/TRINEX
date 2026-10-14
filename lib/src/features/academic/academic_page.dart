@@ -247,38 +247,9 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
     catch (e) { _message('تعذر حذف الشيت: $e', error: true); }
   }
 
-  Widget _buildDrive(ThemeData theme) => ListView(children: [
-    Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Icon(Icons.cloud_sync_outlined, size: 30, color: theme.colorScheme.primary), const SizedBox(width: 12), Expanded(child: Text('مزامنة المواد من Google Drive', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)))]),
-      const SizedBox(height: 10),
-      const Text('تستورد المزامنة فهرس الملفات من مصدر Drive المهيأ على الخادم. لا تُخزّن بيانات اعتماد Google داخل التطبيق.'),
-      const SizedBox(height: 16),
-      FilledButton.icon(onPressed: _syncing ? null : _syncDrive, icon: _syncing ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.sync), label: Text(_syncing ? 'جارٍ طلب المزامنة...' : 'بدء المزامنة')),
-    ]))),
-    const SizedBox(height: 8),
-    Text('آخر عمليات المزامنة', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-    const SizedBox(height: 8),
-    if (_driveRuns.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('لا توجد عمليات مزامنة مسجلة أو لا تتوفر صلاحية الوصول.'))),
-    ..._driveRuns.map((run) => Card(child: ListTile(
-      leading: Icon((run['status']?.toString() == 'success') ? Icons.check_circle_outline : (run['status']?.toString() == 'failed') ? Icons.error_outline : Icons.pending_outlined),
-      title: Text('الحالة: ${_driveStatus(run['status'])}'),
-      subtitle: Text('بدأت: ${run['started_at'] ?? '—'}\nالملفات: ${run['files_seen'] ?? 0}  •  أضيف/حُدّث: ${run['materials_upserted'] ?? 0}  •  عُطّل: ${run['materials_deactivated'] ?? 0}${(run['error_message'] ?? '').toString().isEmpty ? '' : '\nالخطأ: ${run['error_message']}'}'),
-      isThreeLine: true,
-    ))),
-  ]);
-
   String _lookupName(List<Map<String, dynamic>> rows, dynamic id) {
     for (final row in rows) { if (row['id']?.toString() == id?.toString()) return '${row['name_ar'] ?? row['name'] ?? row['title'] ?? id}'; }
     return id?.toString() ?? 'غير محدد';
-  }
-
-  String _subjectLabel(dynamic id) {
-    for (final subject in _subjects) {
-      if (subject['id']?.toString() == id?.toString()) {
-        return '${subject['name_ar'] ?? subject['id']}';
-      }
-    }
-    return id?.toString() ?? '—';
   }
 
   String _displayApiTime(dynamic value) {
