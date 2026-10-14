@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 enum AdminSection {
   overview('نظرة عامة', Icons.space_dashboard_outlined),
+  analytics('التحليلات والاستخدام', Icons.query_stats_outlined),
   students('الطلاب', Icons.school_outlined),
   staff('الموظفون والصلاحيات', Icons.manage_accounts_outlined),
   content('المحتوى', Icons.article_outlined),
   materials('المواد الدراسية', Icons.menu_book_outlined),
   schedule('الجداول', Icons.calendar_month_outlined),
-  moderation('الإشراف والتعليقات', Icons.gavel_outlined),
   chatReports('بلاغات الدردشة', Icons.flag_outlined),
   notifications('الإشعارات', Icons.notifications_active_outlined),
   media('رفع الوسائط', Icons.perm_media_outlined),

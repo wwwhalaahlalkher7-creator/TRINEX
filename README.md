@@ -8,8 +8,8 @@
 - واجهة تسجيل دخول عربية.
 - حفظ الجلسة في التخزين الآمن.
 - لوحة معلومات عربية أصلية مرتبطة بمسار API الحالي، تعرض مؤشرات الطلاب والموظفين والمواد والمحتوى والإعلانات والتعليقات.
-- وحدة إشراف للتعليقات والردود، بالإضافة إلى مراجعة بلاغات الدردشة العامة وتغيير حالة البلاغ والرسالة عبر API.
-- تنقل يراعي معرّفات أدوار Backend المعروفة: `super_admin` و`content_manager` و`academic_manager` و`moderator`؛ وهذا لا يستبدل صلاحيات الخادم.
+- وحدة بلاغات الدردشة متاحة لمدير النظام لمراجعة البلاغات؛ حُذفت صفحة الإشراف المنفصلة من لوحة الإدارة.
+- تنقل يراعي معرّفات أدوار Backend المعروفة: `super_admin` و`content_manager` و`academic_manager`؛ وهذا لا يستبدل صلاحيات الخادم.
 - تنقل متجاوب للشاشات الصغيرة والكبيرة.
 - عميل API يدعم GET وPOST وPUT وPATCH وDELETE.
 - تدوير رمز التحديث عبر `/auth/refresh` عند انتهاء رمز الوصول.
@@ -99,7 +99,7 @@ Cloudflare قابل للحل أو أن الخدمة متاحة.
 ## حالة الوحدات
 
 - لوحة المعلومات: موصولة بمسار الإحصائيات.
-- الإشراف والتعليقات: قراءة وتغيير حالة التعليقات والردود، مع حذف الردود.
+- الإشراف الطلابي: يُمنح منصب مشرف الطالب من قائمة الطالب في صفحة الطلاب، ويتيح حذف التعليقات والردود ورسائل المحادثة العامة. يتحقق الـBackend من المنصب في كل عملية حذف.
 - إدارة المحتوى: CRUD أساسي للأخبار والفعاليات والإنجازات مع حقول روابط الصور؛ والإعلانات لمدير النظام فقط في الواجهة الحالية.
 - الإشعارات: سجل الإعلانات المنشورة وإرسال/تحديث الاستهداف عبر API. إدراج الإشعار في قوائم التسليم لا يثبت وصول Push إلى الجهاز؛ ذلك يعتمد على إعداد عامل التسليم بالخادم.
 - رفع الوسائط: رفع صورة JPEG/PNG/WebP حتى 3 ميغابايت عبر `/admin/media` ونسخ الرابط لاستخدامه في المحتوى؛ يعتمد على تهيئة مخزن الوسائط في الخادم.
@@ -117,7 +117,7 @@ The academic workspace includes subject, material, and schedule CRUD screens plu
 
 ## Student and staff administration
 
-The student and staff screens use the current backend contracts directly. Student deletion and staff deletion are permanent operations and require confirmation. Role labels are mapped to existing backend role IDs; see `docs/API_CONTRACT_AUDIT.md` for the current `moderator` permission limitation and unverified items.
+The student and staff screens use the current backend contracts directly. Student deletion and staff deletion are permanent operations and require confirmation. Staff roles are limited to `super_admin`, `content_manager`, and `academic_manager`. Student moderation is a separate `students.is_moderator` privilege; legacy staff `moderator` accounts receive no privileged API permissions.
 
 ### Phase 7 — Account and security
 
@@ -134,3 +134,10 @@ See [`docs/PHASE8_AUDIT.md`](docs/PHASE8_AUDIT.md) for the security/integration 
 ## Admin parity
 
 راجع [`docs/ADMIN_PARITY_AUDIT.md`](docs/ADMIN_PARITY_AUDIT.md) لمقارنة وظائف لوحة الويب السابقة بالشاشات الأصلية وعقود API، مع بيان ما لم يُتحقق منه على خادم حي.
+
+
+### Phase 2 — Usage resource analytics and student moderation
+- The analytics screen reports normalized API request counts, response duration, 5xx errors, executed D1 operations, D1 row metadata, instrumented R2 operations/bytes, the application media storage ledger, and the top three API routes by request/D1/R2 use.
+- These are application-observed operational metrics, not Cloudflare account billing, Worker CPU-time, or provider-wide storage analytics. Exact account usage requires a separately authorized Cloudflare Analytics/API integration.
+- The admin navigation no longer includes the standalone moderation page or assignable staff moderator role. Student moderators are granted/revoked from the Students page.
+- Backend migration `0040_student_moderators_and_resource_usage.sql` is required before deploying the updated Worker or app clients. See `docs/USAGE_ANALYTICS_RESOURCE_METRICS_AND_STUDENT_MODERATION.md`.

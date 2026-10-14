@@ -94,3 +94,11 @@ These routes were found in the supplied Union-App backend source. No live produc
 - `GET /admin/audit-logs?limit=100` returns audit entries; `GET /admin/security/auth-events?limit=100` returns selected failed/locked authentication events. Both require elevated permissions. They are read-only in the app.
 - `GET /admin/settings` and `PUT /admin/settings/:key` are the existing settings endpoints. The UI intentionally limits displayed/editable keys to `public.*` and `Logo`, and validates values as JSON before sending them. This is a UI restriction; backend authorization remains authoritative.
 - No live production API calls or Dart analyzer/build commands were possible in the current environment.
+
+
+## Phase 2 contract update (2026-10-14)
+The staff `moderator` role is no longer an approved/privileged role. Only `super_admin`, `content_manager`, and `academic_manager` are assignable. Student moderators are represented by `students.is_moderator` and managed through `PATCH /api/v1/admin/students/{id}/moderator` with `{ "isModerator": true|false }`; the endpoint requires `academic.write`. Student-authenticated deletion endpoints independently enforce the flag.
+
+
+## Phase 2 contract update (2026-10-14)
+The staff `moderator` role is no longer an approved/privileged role. Only `super_admin`, `content_manager`, and `academic_manager` are assignable. Student moderators are represented by `students.is_moderator` and managed through `PATCH /api/v1/admin/students/{id}/moderator` with `{ "isModerator": true|false }`; the endpoint requires `academic.write`. Student-authenticated deletion endpoints independently enforce the flag.

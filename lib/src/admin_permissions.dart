@@ -6,7 +6,6 @@ abstract final class AdminPermissions {
   static const superAdmin = 'super_admin';
   static const contentManager = 'content_manager';
   static const academicManager = 'academic_manager';
-  static const moderator = 'moderator';
 
   static bool canSee(String role, AdminSection section) {
     switch (role) {
@@ -23,14 +22,6 @@ abstract final class AdminPermissions {
           AdminSection.schedule,
           AdminSection.account,
         }.contains(section);
-      case moderator:
-        return const {
-          AdminSection.overview,
-          AdminSection.moderation,
-          AdminSection.chatReports,
-          AdminSection.notifications,
-          AdminSection.account,
-        }.contains(section);
       default:
         // Unknown or future roles receive the least-privilege navigation.
         return const {AdminSection.overview, AdminSection.account}.contains(section);
@@ -45,8 +36,6 @@ abstract final class AdminPermissions {
         return 'مدير المحتوى';
       case academicManager:
         return 'مدير الشؤون الأكاديمية';
-      case moderator:
-        return 'مشرف التفاعل';
       default:
         return role.isEmpty ? 'دور غير محدد' : role;
     }

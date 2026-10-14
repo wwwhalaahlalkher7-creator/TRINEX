@@ -32,3 +32,15 @@
 - هل سيستخدم الإصدار الأول Worker الحالي مباشرة، أم واجهة توافق إلى المعمارية المستهدفة؟
 - خريطة الأدوار: يحتوي Backend الحالي على `super_admin` و`content_manager` و`academic_manager` و`moderator`. يجب اعتماد الأسماء النهائية وسياسة تحويل الأدوار قبل إخفاء الوحدات أو السماح بها في الواجهة.
 - آلية توزيع نسخة iOS محليًا: أجهزة مسجلة/توقيع تطوير/توزيع مؤسسي وفق حساب Apple المتاح.
+
+
+## Current role and usage-metrics update (2026-10-14)
+The staff `moderator` role has been retired from the assignable admin role map and no longer receives privileged API permissions. Student moderation is an independent `students.is_moderator` flag controlled from TRINEX-Admin's Students page; the Worker enforces it for cross-user comment, reply and public-chat message deletion. The separate moderation page is no longer part of admin navigation.
+
+Usage analytics now include aggregate route-level Worker request counts/duration/errors, executed D1 operations and available row metadata, and instrumented R2 operations/bytes. These application-side measurements do not equal Cloudflare billing or Worker CPU time.
+
+
+## Current role and usage-metrics update (2026-10-14)
+The staff `moderator` role has been retired from the assignable admin role map and no longer receives privileged API permissions. Student moderation is an independent `students.is_moderator` flag controlled from TRINEX-Admin's Students page; the Worker enforces it for cross-user comment, reply and public-chat message deletion. The separate moderation page is no longer part of admin navigation.
+
+Usage analytics now include aggregate route-level Worker request counts/duration/errors, executed D1 operations and available row metadata, and instrumented R2 operations/bytes. These application-side measurements do not equal Cloudflare billing or Worker CPU time.

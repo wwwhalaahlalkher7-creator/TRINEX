@@ -4,7 +4,6 @@ import 'session_store.dart';
 import 'admin_permissions.dart';
 import 'admin_section.dart';
 import 'design_system/trinex_theme.dart';
-import 'features/moderation/moderation_page.dart';
 import 'features/moderation/chat_reports_page.dart';
 import 'features/security/eino_monitor_page.dart';
 import 'features/content/content_page.dart';
@@ -14,6 +13,7 @@ import 'features/notifications/notifications_page.dart';
 import 'features/media/media_page.dart';
 import 'features/security/security_page.dart';
 import 'features/account/account_page.dart';
+import 'features/analytics/analytics_page.dart';
 import 'features/settings/settings_page.dart';
 
 class AdminShell extends StatefulWidget {
@@ -133,6 +133,8 @@ class _AdminShellState extends State<AdminShell> {
 
   Widget _buildPage() {
     switch (_section) {
+      case AdminSection.analytics:
+        return AnalyticsPage(api: widget.api);
       case AdminSection.overview:
         return DashboardPage(
           api: widget.api,
@@ -140,8 +142,6 @@ class _AdminShellState extends State<AdminShell> {
           onNavigate: (section) => setState(() => _section = section),
           visibleSections: _visibleSections(_session!.role),
         );
-      case AdminSection.moderation:
-        return ModerationPage(api: widget.api);
       case AdminSection.chatReports:
         return ChatReportsPage(api: widget.api);
       case AdminSection.eino:
@@ -375,9 +375,9 @@ class _DashboardPageState extends State<DashboardPage> {
     final quickActions = <_QuickAction>[
       const _QuickAction(AdminSection.content, 'إدارة المحتوى', 'الأخبار والإعلانات والفعاليات', Icons.article_outlined),
       const _QuickAction(AdminSection.materials, 'المواد الدراسية', 'المواد والملفات الأكاديمية', Icons.menu_book_outlined),
-      const _QuickAction(AdminSection.moderation, 'مراجعة التفاعلات', 'التعليقات والردود', Icons.forum_outlined),
       const _QuickAction(AdminSection.staff, 'إدارة الموظفين', 'الحسابات والأدوار الإدارية', Icons.manage_accounts_outlined),
       const _QuickAction(AdminSection.security, 'الأمان والتدقيق', 'أحداث الدخول وسجل العمليات', Icons.shield_outlined),
+      const _QuickAction(AdminSection.analytics, 'التحليلات والاستخدام', 'نشاط التطبيق والموقع والأقسام', Icons.query_stats_outlined),
       const _QuickAction(AdminSection.eino, 'مراقبة إينو', 'الأداء والأخطاء ومزودو الخدمة', Icons.monitor_heart_outlined),
       const _QuickAction(AdminSection.chatReports, 'بلاغات الدردشة', 'مراجعة البلاغات واتخاذ الإجراء', Icons.flag_outlined),
       const _QuickAction(AdminSection.schedule, 'الجداول الأكاديمية', 'الجداول والمواعيد', Icons.calendar_month_outlined),
@@ -668,7 +668,6 @@ List<AdminSection> _compactSections(List<AdminSection> visible) {
     AdminSection.students,
     AdminSection.content,
     AdminSection.materials,
-    AdminSection.moderation,
     AdminSection.account,
   ];
   final result = preferred.where(visible.contains).take(5).toList();

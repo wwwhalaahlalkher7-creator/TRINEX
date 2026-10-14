@@ -28,15 +28,12 @@ void main() {
       expect(AdminPermissions.canSee('academic_manager', AdminSection.staff), isFalse);
     });
 
-    test('moderator sees moderation but not staff management', () {
-      expect(AdminPermissions.canSee('moderator', AdminSection.moderation), isTrue);
-      expect(AdminPermissions.canSee('moderator', AdminSection.chatReports), isTrue);
-      expect(AdminPermissions.canSee('moderator', AdminSection.notifications), isTrue);
-      expect(AdminPermissions.canSee('moderator', AdminSection.media), isFalse);
+    test('legacy staff moderator role is no longer granted dashboard navigation', () {
       expect(AdminPermissions.canSee('moderator', AdminSection.overview), isTrue);
+      expect(AdminPermissions.canSee('moderator', AdminSection.account), isTrue);
+      expect(AdminPermissions.canSee('moderator', AdminSection.chatReports), isFalse);
+      expect(AdminPermissions.canSee('moderator', AdminSection.students), isFalse);
       expect(AdminPermissions.canSee('moderator', AdminSection.staff), isFalse);
-      expect(AdminPermissions.canSee('moderator', AdminSection.security), isFalse);
-      expect(AdminPermissions.canSee('moderator', AdminSection.eino), isFalse);
     });
 
     test('unknown roles receive least-privilege navigation', () {

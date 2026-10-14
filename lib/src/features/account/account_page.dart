@@ -76,7 +76,6 @@ class _AccountPageState extends State<AccountPage> {
     'super_admin' => 'مدير النظام',
     'content_manager' => 'مدير المحتوى',
     'academic_manager' => 'مدير الشؤون الأكاديمية',
-    'moderator' => 'مشرف التفاعل',
     _ => role.isEmpty ? 'غير محدد' : role,
   };
 }

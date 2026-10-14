@@ -129,3 +129,11 @@ Not yet verified: Flutter analyzer/tests and native builds. The workspace curren
 - Audit-detail view redacts sensitive fields and safely hides malformed metadata JSON.
 - Backend JavaScript syntax check passed; Flutter analysis/tests/builds remain pending because the SDK is unavailable in the current environment.
 - Full details and release gates: `docs/PHASE8_AUDIT.md`.
+
+
+## Phase 2 update (2026-10-14)
+The legacy staff moderator role and moderation navigation have been removed. The Students page grants/revokes the separate student moderator flag. Usage analytics now display server/API activity, D1 operations, R2 operations/bytes, the app's media-storage ledger and top-three normalized API routes. Backend migration 0040 must be applied before use. Exact Cloudflare account-level usage and Worker CPU metrics are not available from these application-side counters.
+
+
+## Phase 2 update (2026-10-14)
+The legacy staff moderator role and moderation navigation have been removed. The Students page grants/revokes the separate student moderator flag. Usage analytics now display server/API activity, D1 operations, R2 operations/bytes, the app's media-storage ledger and top-three normalized API routes. Backend migration 0040 must be applied before use. Exact Cloudflare account-level usage and Worker CPU metrics are not available from these application-side counters.
