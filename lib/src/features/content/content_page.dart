@@ -42,7 +42,6 @@ class ContentPage extends StatefulWidget {
 class _ContentPageState extends State<ContentPage> {
   late final List<_ContentKind> _kinds;
   _ContentKind _kind = _ContentKind.news;
-  String _status = 'all';
   String _query = '';
   List<Map<String, dynamic>> _items = [];
   bool _loading = false;
@@ -79,10 +78,33 @@ class _ContentPageState extends State<ContentPage> {
   List<Map<String, dynamic>> get _filtered {
     final q = _query.trim().toLowerCase();
     return _items.where((item) {
-      final statusMatches = _status == 'all' || (item['status']?.toString() ?? 'draft') == _status;
       final text = '${item['title'] ?? ''} ${item['body'] ?? item['description'] ?? ''} ${item['category'] ?? ''}'.toLowerCase();
-      return statusMatches && (q.isEmpty || text.contains(q));
+      return q.isEmpty || text.contains(q);
     }).toList();
+  }
+
+  DateTime? _date(dynamic value) => value == null ? null : DateTime.tryParse(value.toString());
+  DateTime get _today => DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
+  String _eventStatus(Map<String, dynamic> item) {
+    final start = _date(item['event_at']);
+    final end = _date(item['end_at']);
+    if (end != null && !_today.isBefore(DateTime(end.year, end.month, end.day).add(const Duration(days: 1)))) return 'منتهي';
+    if (start == null && end == null) return 'جارٍ الآن';
+    if (start == null) return 'جارٍ الآن';
+    final startDay = DateTime(start.year, start.month, start.day);
+    if (_today.isBefore(startDay)) return 'قريبًا';
+    return 'جارٍ الآن';
+  }
+
+  String _newsStatus(Map<String, dynamic> item) {
+    final date = _date(item['publish_at']);
+    return date != null && DateTime(date.year, date.month, date.day).isAfter(_today) ? 'مجدول' : 'منشور';
+  }
+
+  String _achievementStatus(Map<String, dynamic> item) {
+    final date = _date(item['achieved_at']);
+    return date != null && DateTime(date.year, date.month, date.day).isAfter(_today) ? 'مجدول' : 'منشور';
   }
 
   Future<void> _edit([Map<String, dynamic>? item]) async {
@@ -159,7 +181,7 @@ class _ContentPageState extends State<ContentPage> {
                   color: _kind == kind ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(14),
                   child: InkWell(borderRadius: BorderRadius.circular(14), onTap: () {
-                    setState(() { _kind = kind; _items = []; _status = 'all'; });
+                    setState(() { _kind = kind; _items = []; });
                     _load();
                   }, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(kind.icon, size: 21, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant),
@@ -175,16 +197,6 @@ class _ContentPageState extends State<ContentPage> {
           SizedBox(width: 300, child: TextField(
             decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'البحث في العنوان والوصف', isDense: true),
             onChanged: (value) => setState(() => _query = value),
-          )),
-          SizedBox(width: 170, child: DropdownButtonFormField<String>(
-            initialValue: _status,
-            decoration: const InputDecoration(labelText: 'حالة النشر', isDense: true),
-            items: const [
-              DropdownMenuItem(value: 'all', child: Text('كل الحالات')),
-              DropdownMenuItem(value: 'draft', child: Text('مسودة')),
-              DropdownMenuItem(value: 'published', child: Text('منشور')),
-            ],
-            onChanged: (value) => setState(() => _status = value ?? 'all'),
           )),
           OutlinedButton.icon(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh), label: const Text('تحديث')),
         ]),
@@ -218,8 +230,9 @@ class _ContentPageState extends State<ContentPage> {
                 Text((item['body'] ?? item['description'] ?? item['intro'] ?? '').toString(), maxLines: 3, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 8),
                 Wrap(spacing: 8, runSpacing: 6, children: [
-                  Chip(label: Text((item['status'] ?? 'draft') == 'published' ? 'منشور' : 'مسودة'), visualDensity: VisualDensity.compact),
-                  if (_kind == _ContentKind.events && DateTime.tryParse(item['event_at']?.toString() ?? '')?.isAfter(DateTime.now()) == true) const Chip(label: Text('قريبًا'), visualDensity: VisualDensity.compact),
+                  if (_kind == _ContentKind.events) Chip(label: Text(_eventStatus(item)), visualDensity: VisualDensity.compact),
+                  if (_kind == _ContentKind.news) Chip(label: Text(_newsStatus(item)), visualDensity: VisualDensity.compact),
+                  if (_kind == _ContentKind.achievements) Chip(label: Text(_achievementStatus(item)), visualDensity: VisualDensity.compact),
                   if ((item['category'] ?? '').toString().isNotEmpty) Chip(label: Text(item['category'].toString()), visualDensity: VisualDensity.compact),
                   if ((item['created_at'] ?? '').toString().isNotEmpty) Text(item['created_at'].toString(), style: theme.textTheme.bodySmall),
                 ]),
@@ -347,14 +360,22 @@ class _ContentEditorState extends State<_ContentEditor> {
     if (!_formKey.currentState!.validate()) { return; }
     final title = _title.text.trim();
     final body = _body.text.trim();
-    var dateText = switch (widget.kind) { _ContentKind.news => _isoDate(_publishAt.text), _ContentKind.events => _isoDate(_eventAt.text), _ContentKind.achievements => _isoDate(_achievedAt.text), _ContentKind.announcements => _isoDate(_publishAt.text) };
-    if (dateText.isEmpty) { dateText = DateTime.now().toIso8601String(); if (widget.kind == _ContentKind.news) _publishAt.text = _displayDate(dateText); if (widget.kind == _ContentKind.events) _eventAt.text = _displayDate(dateText); if (widget.kind == _ContentKind.achievements) _achievedAt.text = _displayDate(dateText); }
-    final publishDate = DateTime.tryParse(dateText);
-    final isFuture = publishDate != null && DateTime(publishDate.year,publishDate.month,publishDate.day).isAfter(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day));
-    final payload = <String, dynamic>{'title': title, 'status': isFuture && widget.kind != _ContentKind.events ? 'draft' : 'published'};
+    final todayIso = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day).toIso8601String();
+    if (widget.kind == _ContentKind.news && _publishAt.text.trim().isEmpty) _publishAt.text = _displayDate(todayIso);
+    if (widget.kind == _ContentKind.achievements && _achievedAt.text.trim().isEmpty) _achievedAt.text = _displayDate(todayIso);
+    if (widget.kind == _ContentKind.events && _eventAt.text.trim().isEmpty && _endAt.text.trim().isEmpty) {
+      // Both event dates are optional; absence of both means the event is ongoing.
+    }
+    final startDate = _readDate(_eventAt.text);
+    final endDate = _readDate(_endAt.text);
+    if (widget.kind == _ContentKind.events && startDate != null && endDate != null && DateTime(startDate.year, startDate.month, startDate.day).isAfter(DateTime(endDate.year, endDate.month, endDate.day))) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تاريخ بداية الفعالية لا يمكن أن يكون بعد تاريخ انتهائها.')));
+      return;
+    }
+    final payload = <String, dynamic>{'title': title};
     switch (widget.kind) {
       case _ContentKind.news:
-        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'publish_at': _isoDate(_publishAt.text), 'expires_at': _isoDate(_expiresAt.text)});
+        payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'publish_at': _isoDate(_publishAt.text)});
         break;
       case _ContentKind.events:
         payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'location': _location.text.trim(), 'event_at': _isoDate(_eventAt.text), 'end_at': _isoDate(_endAt.text)});
@@ -385,7 +406,6 @@ class _ContentEditorState extends State<_ContentEditor> {
       ],
       if (widget.kind == _ContentKind.news) ...[
         const SizedBox(height: 12), TextFormField(controller: _publishAt, readOnly: true, onTap: () => _pickDate(_publishAt), decoration: const InputDecoration(labelText: 'تاريخ النشر (اختياري)', suffixIcon: Icon(Icons.calendar_month))),
-        const SizedBox(height: 12), TextFormField(controller: _expiresAt, readOnly: true, onTap: () => _pickDate(_expiresAt), decoration: const InputDecoration(labelText: 'تاريخ انتهاء الصلاحية (اختياري)', suffixIcon: Icon(Icons.calendar_month))),
       ],
       if (widget.kind == _ContentKind.events) ...[
         const SizedBox(height: 12), TextFormField(controller: _location, decoration: const InputDecoration(labelText: 'المكان (اختياري)')),

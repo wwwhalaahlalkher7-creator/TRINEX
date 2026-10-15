@@ -189,7 +189,10 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   }
 
   Widget _rowCard(Map<String, dynamic> row, ThemeData theme) {
-    final title = (row['name_ar'] ?? row['title'] ?? row['subject_name'] ?? (_tabs.index == 0 ? 'مقرر دراسي' : 'موعد دراسي')).toString();
+    final scheduleSubjectName = _tabs.index == 1 ? _lookupName(_subjects, row['subject_id']) : null;
+    final title = (_tabs.index == 1 && scheduleSubjectName != null && scheduleSubjectName.isNotEmpty && scheduleSubjectName != '—'
+        ? scheduleSubjectName
+        : (row['name_ar'] ?? row['title'] ?? row['subject_name'] ?? (_tabs.index == 0 ? 'مقرر دراسي' : 'موعد دراسي'))).toString();
     final subtitle = switch (_tabs.index) {
       0 => 'القسم: ${_lookupName(_departments, row['department_id'])}  •  الفصل: ${_lookupName(_semesters, row['semester_id'])}  •  الشيتات: ${_materials.where((m) => m['subject_id']?.toString() == row['id']?.toString()).length}',
       _ => '${_dayLabel(row['day_of_week'])}  •  ${_displayApiTime(row['start_time'])} – ${_displayApiTime(row['end_time'])}  •  القاعة: ${row['room'] ?? '—'}',
