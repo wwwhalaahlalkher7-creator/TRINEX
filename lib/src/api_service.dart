@@ -290,7 +290,7 @@ class ApiService {
     required String contentType,
   }) async {
     if (bytes.isEmpty || bytes.length > 100 * 1024 * 1024) {
-      throw const ApiServiceException('حجم الملف يجب أن يكون أقل من أو يساوي 100 ميغابايت.');
+      throw const ApiServiceException('الملف كبير جدًا. اختر ملفًا أصغر.');
     }
     var session = await sessionStore.readIncludingExpired();
     if (session == null) { throw const ApiServiceException('تسجيل الدخول مطلوب.', statusCode: 401); }

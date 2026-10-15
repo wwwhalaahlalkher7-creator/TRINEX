@@ -79,7 +79,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
     if (picked == null || picked.files.isEmpty) { return; }
     final file = picked.files.single;
     if (file.size <= 0) { setState(() => _error = 'الملف فارغ. اختر ملفًا يحتوي على بيانات ثم أعد المحاولة.'); return; }
-    if (file.size > 100 * 1024 * 1024) { setState(() => _error = 'حجم الملف يتجاوز 100 ميغابايت. اختر ملفًا أصغر ثم أعد المحاولة.'); return; }
+    if (file.size > 100 * 1024 * 1024) { setState(() => _error = 'الملف كبير جدًا. اختر ملفًا أصغر ثم أعد المحاولة.'); return; }
     final bytes = file.bytes;
     if (bytes == null || bytes.isEmpty) { setState(() => _error = 'تعذر قراءة الملف من الجهاز. أعد اختياره وحاول مجددًا.'); return; }
     setState(() { _working = true; _error = null; _filename = file.name; _notes.clear(); });
@@ -216,18 +216,20 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
       final encoded = Uint8List.fromList(img.encodeJpg(current, quality: quality));
       if (encoded.length <= maxBytes) { return _PreparedOcrUpload(encoded, outputFilename, 'image/jpeg'); }
     }
-    throw const ApiServiceException('IMPORT_FILE_OVER_PROVIDER_LIMIT: تعذر تقليل حجم الملف إلى أقل من 1 ميغابايت مع الحفاظ على وضوح النص.');
+    throw const ApiServiceException('IMPORT_FILE_OVER_PROVIDER_LIMIT: تعذر تجهيز الملف لقراءة النص مع الحفاظ على وضوحه.');
   }
 
   String _friendlyError(Object error) {
     final value = error.toString();
     if (value.contains('IMPORT_MULTIPAGE_FILE')) { return 'يحتوي المستند على أكثر من صفحة. أدرج صفحة واحدة فقط ثم أعد المسح؛ يمكن أن تحتوي الصفحة الواحدة على أسطر كثيرة.'; }
-    if (value.contains('IMPORT_OCR_NOT_CONFIGURED')) { return 'خدمة OCR.space غير مهيأة على الخادم. أضف مفتاحها كسرّ في Cloudflare Worker.'; }
-    if (value.contains('IMPORT_FILE_OVER_PROVIDER_LIMIT')) { return 'تعذر ضغط الملف إلى أقل من 1 ميغابايت مع الحفاظ على وضوح النص. جرّب مسحًا بدقة أقل أو أدخل البيانات يدويًا.'; }
-    if (value.contains('IMPORT_OCR_QUOTA_EXCEEDED')) { return 'وصلت خدمة OCR إلى حد الاستخدام الحالي. لم يتم حفظ أي بيانات؛ يمكنك الإدخال يدويًا أو المحاولة لاحقًا.'; }
-    if (value.contains('IMPORT_FILE_TYPE_UNSUPPORTED')) { return 'نوع الملف غير مدعوم لهذا المسار. استخدم CSV أو Excel أو PDF أو صورة.'; }
-    if (value.contains('IMPORT_FILE_TOO_LARGE')) { return 'حجم الملف يتجاوز 100 ميغابايت.'; }
-    if (value.contains('IMPORT_OCR_EMPTY')) { return 'لم يتمكن الماسح من قراءة نص واضح. حسّن وضوح الصورة أو استخدم قالبًا مدعومًا.'; }
+    if (value.contains('IMPORT_OCR_NOT_CONFIGURED')) { return 'تعذر الاتصال بخدمة قراءة النص. أبلغ مسؤول النظام.'; }
+    if (value.contains('IMPORT_FILE_OVER_PROVIDER_LIMIT')) { return 'تعذر إرسال الملف إلى خدمة قراءة النص. جرّب صورة أصغر أو أدخل البيانات يدويًا.'; }
+    if (value.contains('IMPORT_OCR_QUOTA_EXCEEDED')) { return 'خدمة قراءة النص مشغولة حاليًا. جرّب لاحقًا أو أدخل البيانات يدويًا.'; }
+    if (value.contains('IMPORT_OCR_TIMEOUT')) { return 'استغرق استخراج النص وقتًا طويلًا. أعد المحاولة بصورة أوضح.'; }
+    if (value.contains('IMPORT_OCR_FAILED')) { return 'تعذر استخراج النص. جرّب صورة واضحة أو أدخل البيانات يدويًا.'; }
+    if (value.contains('IMPORT_FILE_TYPE_UNSUPPORTED')) { return 'نوع الملف غير مدعوم. اختر ملف CSV أو Excel أو PDF أو صورة.'; }
+    if (value.contains('IMPORT_FILE_TOO_LARGE')) { return 'تعذر معالجة الملف بسبب حجمه. جرّب نسخة أصغر.'; }
+    if (value.contains('IMPORT_OCR_EMPTY')) { return 'لم يتمكن الماسح من قراءة نص واضح. جرّب صورة أوضح.'; }
     return value.replaceFirst('Exception: ', '');
   }
 
@@ -332,14 +334,12 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
   }
 
   Widget _setupView() => ListView(padding: const EdgeInsets.all(20), children: [
-    const Text('حدد النطاق قبل اختيار الملف. ستُقارن السجلات ضمن القسم والفصل الدراسي المختارين فقط.'), const SizedBox(height: 18),
+    const Text('اختر القسم والفصل، ثم حدّد الملف لمراجعته قبل الحفظ.'), const SizedBox(height: 18),
     DropdownButtonFormField<String>(initialValue: _departmentId, decoration: const InputDecoration(labelText: 'القسم', border: OutlineInputBorder()), items: widget.departments.map((d) => DropdownMenuItem(value: '${d['id']}', child: Text(_name(d)))).toList(), onChanged: _working ? null : (v) => setState(() => _departmentId = v)),
     const SizedBox(height: 12),
     DropdownButtonFormField<String>(initialValue: _semesterId, decoration: const InputDecoration(labelText: 'الفصل الدراسي', border: OutlineInputBorder()), items: widget.semesters.map((s) => DropdownMenuItem(value: '${s['id']}', child: Text(_name(s)))).toList(), onChanged: _working ? null : (v) => setState(() => _semesterId = v)),
-    const SizedBox(height: 18), const ListTile(leading: Icon(Icons.privacy_tip_outlined), title: Text('خصوصية الملفات'), subtitle: Text('لا تُحفظ نسخة المصدر ضمن سجل الاستيراد. تُستخدم الصور وملفات PDF للاستخراج عبر محرك OCR متخصص، وليس عبر نموذج توليدي.')),
     if (_error != null) _errorBanner(_error!), if (_working) const LinearProgressIndicator(),
     const SizedBox(height: 16), FilledButton.icon(onPressed: _working ? null : _pickAndScan, icon: const Icon(Icons.document_scanner_outlined), label: const Text('اختيار الملف وبدء المسح')),
-    const SizedBox(height: 8), const Text('الأنواع المدعومة: CSV وExcel وPDF والصور. الحد الأقصى الحالي 100 ميغابايت. ملفات PDF متعددة الصفحات مرفوضة.'),
   ]);
 
   Widget _reviewView() => Column(children: [
