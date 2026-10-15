@@ -222,11 +222,13 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
   String _friendlyError(Object error) {
     final value = error.toString();
     if (value.contains('IMPORT_MULTIPAGE_FILE')) { return 'يحتوي المستند على أكثر من صفحة. أدرج صفحة واحدة فقط ثم أعد المسح؛ يمكن أن تحتوي الصفحة الواحدة على أسطر كثيرة.'; }
-    if (value.contains('IMPORT_OCR_NOT_CONFIGURED')) { return 'تعذر الاتصال بخدمة قراءة النص. أبلغ مسؤول النظام.'; }
-    if (value.contains('IMPORT_FILE_OVER_PROVIDER_LIMIT')) { return 'تعذر إرسال الملف إلى خدمة قراءة النص. جرّب صورة أصغر أو أدخل البيانات يدويًا.'; }
-    if (value.contains('IMPORT_OCR_QUOTA_EXCEEDED')) { return 'خدمة قراءة النص مشغولة حاليًا. جرّب لاحقًا أو أدخل البيانات يدويًا.'; }
-    if (value.contains('IMPORT_OCR_TIMEOUT')) { return 'استغرق استخراج النص وقتًا طويلًا. أعد المحاولة بصورة أوضح.'; }
-    if (value.contains('IMPORT_OCR_FAILED')) { return 'تعذر استخراج النص. جرّب صورة واضحة أو أدخل البيانات يدويًا.'; }
+    if (value.contains('IMPORT_OCR_NOT_CONFIGURED') || value.contains('IMPORT_OCR_AUTH_FAILED')) { return 'تعذّر الاتصال بخدمة قراءة النص. أبلغ مسؤول النظام.'; }
+    if (value.contains('IMPORT_FILE_OVER_PROVIDER_LIMIT') || value.contains('IMPORT_OCR_PROVIDER_SIZE_LIMIT')) { return 'تعذّر إرسال الملف إلى خدمة قراءة النص. جرّب صورة أصغر مع الحفاظ على وضوح الجدول.'; }
+    if (value.contains('IMPORT_OCR_QUOTA_EXCEEDED')) { return 'خدمة قراءة النص وصلت إلى حد الاستخدام الحالي. جرّب لاحقًا أو أدخل البيانات يدويًا.'; }
+    if (value.contains('IMPORT_OCR_TIMEOUT')) { return 'استغرق استخراج النص وقتًا طويلًا. جرّب مرة أخرى أو أدخل البيانات يدويًا.'; }
+    if (value.contains('IMPORT_OCR_UNAVAILABLE')) { return 'خدمة قراءة النص غير متاحة مؤقتًا. جرّب مرة أخرى بعد قليل.'; }
+    if (value.contains('IMPORT_OCR_PROVIDER_REJECTED')) { return 'تعذّر على خدمة قراءة النص معالجة الملف. جرّب صورة JPG واضحة أو أدخل البيانات يدويًا.'; }
+    if (value.contains('IMPORT_OCR_FAILED')) { return 'تعذّر استخراج النص. جرّب مرة أخرى، وإذا تكرر الخطأ فأبلغ مسؤول النظام.'; }
     if (value.contains('IMPORT_FILE_TYPE_UNSUPPORTED')) { return 'نوع الملف غير مدعوم. اختر ملف CSV أو Excel أو PDF أو صورة.'; }
     if (value.contains('IMPORT_FILE_TOO_LARGE')) { return 'تعذر معالجة الملف بسبب حجمه. جرّب نسخة أصغر.'; }
     if (value.contains('IMPORT_OCR_EMPTY')) { return 'لم يتمكن الماسح من قراءة نص واضح. جرّب صورة أوضح.'; }
