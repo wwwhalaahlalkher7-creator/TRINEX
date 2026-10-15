@@ -345,39 +345,181 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
   ]);
 
   Widget _reviewView() => Column(children: [
-    Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text(_filename ?? 'ملف مستورد', style: Theme.of(context).textTheme.titleMedium),
-      Text('القسم: ${_firstName(widget.departments.where((d) => '${d['id']}' == _departmentId))} • الفصل: ${_firstName(widget.semesters.where((s) => '${s['id']}' == _semesterId))}'),
-      if (_expiresAt != null) Text('تنتهي مهلة العملية: $_expiresAt', style: Theme.of(context).textTheme.bodySmall),
-      ..._notes.map((n) => Padding(padding: const EdgeInsets.only(top: 6), child: Text(n, style: TextStyle(color: Theme.of(context).colorScheme.tertiary)))),
-      if (_error != null) _errorBanner(_error!),
-    ])),
-    const Divider(height: 1),
-    Expanded(child: _rows.isEmpty ? const Center(child: Text('لا توجد سجلات. أضف سجلًا يدويًا أو ارجع واختر ملفًا آخر.')) : ListView.builder(itemCount: _rows.length, itemBuilder: (context, i) => _students ? _studentEditor(i) : _scheduleEditor(i))),
-    Padding(padding: const EdgeInsets.all(12), child: Row(children: [OutlinedButton.icon(onPressed: _working ? null : _addRow, icon: const Icon(Icons.add), label: const Text('إضافة صف')), const Spacer(), if (_working) const SizedBox(width: 24,height:24,child:CircularProgressIndicator(strokeWidth:2)), const SizedBox(width: 10), FilledButton.icon(onPressed: _working || _rows.isEmpty || _countdown > 0 ? null : _commit, icon: const Icon(Icons.check), label: Text(_countdown > 0 ? 'اعتماد بعد $_countdown ثوانٍ' : 'اعتماد وإضافة'))])),
+    Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12)),
+            child: Icon(_students ? Icons.groups_2_outlined : Icons.calendar_month_outlined,
+              color: Theme.of(context).colorScheme.onPrimaryContainer)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(_students ? 'مراجعة الطلاب المستخرجين' : 'مراجعة الجدول المستخرج',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 3),
+            Text(_filename ?? 'ملف مستورد', maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ])),
+        ]),
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _infoChip(Icons.layers_outlined, '${_rows.length} ${_students ? 'سجل طالب' : 'حصة'}'),
+          _infoChip(Icons.apartment_outlined, _firstName(widget.departments.where((d) => '${d['id']}' == _departmentId))),
+          _infoChip(Icons.school_outlined, _firstName(widget.semesters.where((s) => '${s['id']}' == _semesterId))),
+        ]),
+        if (_expiresAt != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(
+          'تنتهي صلاحية المراجعة: $_expiresAt', style: Theme.of(context).textTheme.bodySmall)),
+        ..._notes.map((n) => Container(margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: .55), borderRadius: BorderRadius.circular(10)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.info_outline, size: 18, color: Theme.of(context).colorScheme.onTertiaryContainer),
+            const SizedBox(width: 8), Expanded(child: Text(n, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onTertiaryContainer))),
+          ]))),
+        if (_error != null) _errorBanner(_error!),
+      ]),
+    ),
+    Expanded(child: _rows.isEmpty
+      ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.inbox_outlined, size: 42, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(height: 8), const Text('لا توجد سجلات للمراجعة'),
+          const SizedBox(height: 4), Text('أضف سجلًا يدويًا أو ارجع لاختيار ملف آخر.', style: Theme.of(context).textTheme.bodySmall),
+        ])))
+      : ListView.separated(padding: const EdgeInsets.fromLTRB(12, 12, 12, 16), itemCount: _rows.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, i) => _students ? _studentEditor(i) : _scheduleEditor(i))),
+    Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface,
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant))),
+      child: SafeArea(top: false, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          Expanded(child: OutlinedButton.icon(onPressed: _working ? null : _addRow,
+            icon: const Icon(Icons.add), label: const Text('إضافة سجل'), style: OutlinedButton.styleFrom(minimumSize: const Size(0, 46)))),
+          const SizedBox(width: 10),
+          Expanded(flex: 2, child: FilledButton.icon(onPressed: _working || _rows.isEmpty || _countdown > 0 ? null : _commit,
+            icon: _working ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.verified_outlined),
+            label: Text(_countdown > 0 ? 'اعتماد بعد $_countdown ثوانٍ' : 'اعتماد وحفظ السجلات'),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 46)))),
+        ]),
+        const SizedBox(height: 6),
+        Text('لن تُحفظ أي بيانات قبل الضغط على «اعتماد وحفظ السجلات».', textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      ])),
+    ),
   ]);
+
+  Widget _infoChip(IconData icon, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+    decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(9),
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 15), const SizedBox(width: 5),
+      ConstrainedBox(constraints: const BoxConstraints(maxWidth: 180), child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelMedium))]));
+
+  Widget _cardHeading({required IconData icon, required String title, required int index, required VoidCallback onDelete}) => Row(children: [
+    Container(width: 34, height: 34, alignment: Alignment.center, decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(10)),
+      child: Icon(icon, size: 19, color: Theme.of(context).colorScheme.onPrimaryContainer)),
+    const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('$title $index', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+      Text('القيم التالية ستُحفظ عند الاعتماد', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+    ])),
+    IconButton(tooltip: 'حذف هذا السجل', onPressed: onDelete, icon: const Icon(Icons.delete_outline),
+      style: IconButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error)),
+  ]);
+
+  Widget _editorCard({required Widget child}) => Card(
+    margin: EdgeInsets.zero, elevation: 0, color: Theme.of(context).colorScheme.surfaceContainerLow,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16),
+      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+    child: Padding(padding: const EdgeInsets.all(14), child: child));
+
+  Widget _sectionLabel(String text) => Padding(padding: const EdgeInsets.only(top: 10, bottom: 4),
+    child: Align(alignment: AlignmentDirectional.centerStart, child: Text(text,
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700))));
 
   Widget _studentEditor(int i) {
     final row = _rows[i];
-    return Card(margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5), child: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-      Row(children: [Text('الطالب ${i + 1}', style: const TextStyle(fontWeight: FontWeight.bold)), const Spacer(), IconButton(tooltip: 'حذف الصف من الاستيراد', onPressed: () => _removeRow(i), icon: const Icon(Icons.delete_outline))]),
-      TextFormField(initialValue: '${row['studentNumber'] ?? ''}', decoration: const InputDecoration(labelText: 'الرقم الجامعي'), onChanged: (v) => _change(i,'studentNumber',_digits(v).trim())),
-      TextFormField(initialValue: '${row['fullName'] ?? ''}', decoration: const InputDecoration(labelText: 'اسم الطالب'), onChanged: (v) => _change(i,'fullName',v)),
-      TextFormField(initialValue: '${row['email'] ?? ''}', decoration: const InputDecoration(labelText: 'البريد الإلكتروني (اختياري)'), onChanged: (v) => _change(i,'email',v)),
-    ])));
+    return _editorCard(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _cardHeading(icon: Icons.person_outline, title: 'الطالب', index: i + 1, onDelete: () => _removeRow(i)),
+      _sectionLabel('بيانات الطالب التي ستُضاف'),
+      const SizedBox(height: 4),
+      TextFormField(key: ValueKey('student-number-$i'), initialValue: '${row['studentNumber'] ?? ''}',
+        decoration: const InputDecoration(labelText: 'الرقم الجامعي', prefixIcon: Icon(Icons.badge_outlined), border: OutlineInputBorder()),
+        onChanged: (v) => _change(i, 'studentNumber', _digits(v).trim())),
+      const SizedBox(height: 10),
+      TextFormField(key: ValueKey('student-name-$i'), initialValue: '${row['fullName'] ?? ''}',
+        decoration: const InputDecoration(labelText: 'اسم الطالب', prefixIcon: Icon(Icons.person_outline), border: OutlineInputBorder()),
+        onChanged: (v) => _change(i, 'fullName', v)),
+      const SizedBox(height: 10),
+      TextFormField(key: ValueKey('student-email-$i'), initialValue: '${row['email'] ?? ''}',
+        keyboardType: TextInputType.emailAddress,
+        decoration: const InputDecoration(labelText: 'البريد الإلكتروني (اختياري)', prefixIcon: Icon(Icons.alternate_email), border: OutlineInputBorder()),
+        onChanged: (v) => _change(i, 'email', v)),
+    ]));
   }
 
   Widget _scheduleEditor(int i) {
     final row = _rows[i]; final day = int.tryParse('${row['dayOfWeek']}') ?? 0;
-    return Card(margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5), child: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-      Row(children: [Text('الحصة ${i + 1}', style: const TextStyle(fontWeight: FontWeight.bold)), const Spacer(), IconButton(tooltip: 'حذف الحصة من الاستيراد', onPressed: () => _removeRow(i), icon: const Icon(Icons.delete_outline))]),
-      DropdownButtonFormField<String>(initialValue: _existingSchedules.any((s) => '${s['id']}' == '${row['existingId']}') ? '${row['existingId']}' : '', decoration: const InputDecoration(labelText: 'الإجراء (اختياري: استبدال حصة موجودة)'), items: [const DropdownMenuItem<String>(value: '', child: Text('إضافة حصة جديدة')), ..._existingSchedules.map((s) => DropdownMenuItem<String>(value: '${s['id']}', child: Text('${_firstName(_availableSubjects.where((sub) => '${sub['id']}' == '${s['subject_id']}'))} • ${_dayName(s['day_of_week'])} • ${s['start_time']}–${s['end_time']}', overflow: TextOverflow.ellipsis)))], onChanged: (v) => _change(i, 'existingId', v ?? '')),
+    final subjectName = _firstName(_availableSubjects.where((s) => '${s['id']}' == '${row['subjectId']}'));
+    final start = '${row['startTime'] ?? ''}'; final end = '${row['endTime'] ?? ''}';
+    return _editorCard(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _cardHeading(icon: Icons.event_note_outlined, title: 'الحصة', index: i + 1, onDelete: () => _removeRow(i)),
       const SizedBox(height: 8),
-      DropdownButtonFormField<String>(initialValue: _availableSubjects.any((s) => '${s['id']}' == '${row['subjectId']}') ? '${row['subjectId']}' : null, decoration: const InputDecoration(labelText: 'المادة الجديدة'), items: _availableSubjects.map((s) => DropdownMenuItem(value: '${s['id']}', child: Text(_name(s)))).toList(), onChanged: (v) { setState(() { _error = null; _rows[i]['subjectId'] = v ?? ''; _rows[i]['subjectName'] = _firstName(_availableSubjects.where((s) => '${s['id']}' == v)); }); _startCountdown(); }),
-      const SizedBox(height: 8), DropdownButtonFormField<int>(initialValue: day.clamp(0,6).toInt(), decoration: const InputDecoration(labelText: 'اليوم'), items: const [DropdownMenuItem(value:0,child:Text('الأحد')),DropdownMenuItem(value:1,child:Text('الاثنين')),DropdownMenuItem(value:2,child:Text('الثلاثاء')),DropdownMenuItem(value:3,child:Text('الأربعاء')),DropdownMenuItem(value:4,child:Text('الخميس')),DropdownMenuItem(value:5,child:Text('الجمعة')),DropdownMenuItem(value:6,child:Text('السبت'))], onChanged: (v) => _change(i,'dayOfWeek',v ?? 0)),
-      Row(children: [Expanded(child: TextFormField(initialValue: '${row['startTime'] ?? ''}', decoration: const InputDecoration(labelText: 'وقت البداية', hintText: '08:00'), onChanged: (v) => _change(i,'startTime',_time(v)))), const SizedBox(width: 10), Expanded(child: TextFormField(initialValue: '${row['endTime'] ?? ''}', decoration: const InputDecoration(labelText: 'وقت النهاية', hintText: '10:00'), onChanged: (v) => _change(i,'endTime',_time(v))))]),
-      Row(children: [Expanded(child: TextFormField(initialValue: '${row['room'] ?? ''}', decoration: const InputDecoration(labelText: 'القاعة (اختياري)'), onChanged: (v) => _change(i,'room',v))), const SizedBox(width: 10), Expanded(child: TextFormField(initialValue: '${row['lecturer'] ?? ''}', decoration: const InputDecoration(labelText: 'المدرّس (اختياري)'), onChanged: (v) => _change(i,'lecturer',v)))]),
-    ])));
+      Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.outlineVariant)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [Icon(Icons.calendar_today_outlined, size: 17, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 7),
+            Text(_dayName(row['dayOfWeek']), style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            const Spacer(), Icon(Icons.access_time, size: 17, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 5),
+            Text('${start.isEmpty ? '—' : start} – ${end.isEmpty ? '—' : end}', style: Theme.of(context).textTheme.labelLarge),
+          ]),
+          const SizedBox(height: 7),
+          Text(subjectName == '—' ? ((row['subjectName'] ?? '').toString().isEmpty ? 'لم تُحدّد المادة بعد' : '${row['subjectName']} • تحتاج إلى ربط بمادة') : subjectName,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          if ('${row['room'] ?? ''}'.trim().isNotEmpty || '${row['lecturer'] ?? ''}'.trim().isNotEmpty)
+            Padding(padding: const EdgeInsets.only(top: 5), child: Text([
+              if ('${row['room'] ?? ''}'.trim().isNotEmpty) 'القاعة: ${row['room']}',
+              if ('${row['lecturer'] ?? ''}'.trim().isNotEmpty) 'المحاضر: ${row['lecturer']}',
+            ].join(' • '), style: Theme.of(context).textTheme.bodySmall)),
+        ])),
+      _sectionLabel('تعديل البيانات قبل الحفظ'),
+      DropdownButtonFormField<String>(key: ValueKey('existing-$i-${row['existingId']}'),
+        initialValue: _existingSchedules.any((s) => '${s['id']}' == '${row['existingId']}') ? '${row['existingId']}' : '',
+        decoration: const InputDecoration(labelText: 'الإجراء', helperText: 'اختياري: استبدال حصة موجودة', border: OutlineInputBorder()),
+        items: [const DropdownMenuItem<String>(value: '', child: Text('إضافة حصة جديدة')),
+          ..._existingSchedules.map((s) => DropdownMenuItem<String>(value: '${s['id']}', child: Text(
+            '${_firstName(_availableSubjects.where((sub) => '${sub['id']}' == '${s['subject_id']}'))} • ${_dayName(s['day_of_week'])} • ${s['start_time']}–${s['end_time']}', overflow: TextOverflow.ellipsis)))],
+        onChanged: (v) => _change(i, 'existingId', v ?? '')),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(key: ValueKey('subject-$i-${row['subjectId']}'),
+        initialValue: _availableSubjects.any((s) => '${s['id']}' == '${row['subjectId']}') ? '${row['subjectId']}' : null,
+        decoration: const InputDecoration(labelText: 'المادة', border: OutlineInputBorder()),
+        items: _availableSubjects.map((s) => DropdownMenuItem(value: '${s['id']}', child: Text(_name(s)))).toList(),
+        onChanged: (v) { setState(() { _error = null; _rows[i]['subjectId'] = v ?? ''; _rows[i]['subjectName'] = _firstName(_availableSubjects.where((s) => '${s['id']}' == v)); }); _startCountdown(); }),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<int>(key: ValueKey('day-$i-$day'), initialValue: day.clamp(0, 6).toInt(),
+        decoration: const InputDecoration(labelText: 'اليوم', border: OutlineInputBorder()),
+        items: const [DropdownMenuItem(value:0,child:Text('الأحد')),DropdownMenuItem(value:1,child:Text('الاثنين')),DropdownMenuItem(value:2,child:Text('الثلاثاء')),DropdownMenuItem(value:3,child:Text('الأربعاء')),DropdownMenuItem(value:4,child:Text('الخميس')),DropdownMenuItem(value:5,child:Text('الجمعة')),DropdownMenuItem(value:6,child:Text('السبت'))],
+        onChanged: (v) => _change(i, 'dayOfWeek', v ?? 0)),
+      const SizedBox(height: 10),
+      Row(children: [Expanded(child: TextFormField(key: ValueKey('start-$i'), initialValue: start, keyboardType: TextInputType.datetime,
+        decoration: const InputDecoration(labelText: 'وقت البداية', hintText: '08:00', border: OutlineInputBorder()), onChanged: (v) => _change(i, 'startTime', _time(v)))),
+        const SizedBox(width: 10), Expanded(child: TextFormField(key: ValueKey('end-$i'), initialValue: end, keyboardType: TextInputType.datetime,
+        decoration: const InputDecoration(labelText: 'وقت النهاية', hintText: '10:00', border: OutlineInputBorder()), onChanged: (v) => _change(i, 'endTime', _time(v))))]),
+      const SizedBox(height: 10),
+      Row(children: [Expanded(child: TextFormField(key: ValueKey('room-$i'), initialValue: '${row['room'] ?? ''}',
+        decoration: const InputDecoration(labelText: 'القاعة (اختياري)', border: OutlineInputBorder()), onChanged: (v) => _change(i, 'room', v))),
+        const SizedBox(width: 10), Expanded(child: TextFormField(key: ValueKey('lecturer-$i'), initialValue: '${row['lecturer'] ?? ''}',
+        decoration: const InputDecoration(labelText: 'المحاضر (اختياري)', border: OutlineInputBorder()), onChanged: (v) => _change(i, 'lecturer', v)))]),
+    ]));
   }
 
   Widget _errorBanner(String message) => Container(margin: const EdgeInsets.symmetric(vertical: 8), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Theme.of(context).colorScheme.errorContainer, borderRadius: BorderRadius.circular(10)), child: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)));
