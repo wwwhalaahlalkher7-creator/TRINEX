@@ -44,9 +44,10 @@ class ApiService {
       final nestedMessage = errorValue is Map<String, dynamic>
           ? errorValue['message']?.toString()
           : errorValue?.toString();
-      final message = decoded['message']?.toString() ??
-          nestedMessage ??
-          'تعذّر تنفيذ الطلب (HTTP ${response.statusCode}).';
+      final code = errorValue is Map<String, dynamic> ? errorValue['code']?.toString() : null;
+      final details = errorValue is Map<String, dynamic> ? errorValue['details']?.toString() : null;
+      var message = decoded['message']?.toString() ?? nestedMessage ?? 'تعذّر تنفيذ الطلب (HTTP ${response.statusCode}).';
+      if (code != null && code.startsWith('IMPORT_')) message = '[$code] $message${details != null && details != 'null' && details.isNotEmpty ? '\n$details' : ''}';
       throw ApiServiceException(message, statusCode: response.statusCode);
     }
 
@@ -276,6 +277,37 @@ class ApiService {
         contentType: MediaType.parse(contentType.toLowerCase()),
       ));
       return _decodeResponse(await http.Response.fromStream(await retry.send().timeout(_timeout)).timeout(_timeout));
+    }
+    return _decodeResponse(response);
+  }
+
+  /// Sends a temporary image/PDF directly to the dedicated OCR endpoint.
+  /// The source is not stored by the application; the caller should release its
+  /// byte buffer immediately after this request completes.
+  Future<Map<String, dynamic>> uploadImportOcr({
+    required Uint8List bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    if (bytes.isEmpty || bytes.length > 100 * 1024 * 1024) {
+      throw const ApiServiceException('حجم الملف يجب أن يكون أقل من أو يساوي 100 ميغابايت.');
+    }
+    var session = await sessionStore.readIncludingExpired();
+    if (session == null) throw const ApiServiceException('تسجيل الدخول مطلوب.', statusCode: 401);
+    if (session.isExpired) session = await _refreshSession(session);
+    Future<http.Response> send(String token) async {
+      final request = http.MultipartRequest('POST', _uri('/admin/imports/ocr'));
+      request.headers['Accept'] = 'application/json';
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename,
+        contentType: MediaType.parse(contentType)));
+      return http.Response.fromStream(await request.send().timeout(const Duration(seconds: 120)))
+          .timeout(const Duration(seconds: 120));
+    }
+    var response = await send(session.accessToken);
+    if (response.statusCode == 401 && session.refreshToken?.isNotEmpty == true) {
+      session = await _refreshSession(session);
+      response = await send(session.accessToken);
     }
     return _decodeResponse(response);
   }

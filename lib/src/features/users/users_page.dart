@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../api_service.dart';
+import '../imports/scanner_import_dialog.dart';
 
 List<Map<String, dynamic>> _asRows(dynamic v) => v is List ? v.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
 String _rowName(Map<String, dynamic> r) => (r['name_ar'] ?? r['name'] ?? r['title'] ?? r['code'] ?? r['id'] ?? 'غير محدد').toString();
@@ -31,6 +32,11 @@ class _StudentsPageState extends State<StudentsPage> {
     if(data==null||!mounted) { return; }
     try{final id=s?['id']?.toString(); if(id==null||id.isEmpty){await widget.api.post('/admin/students',body:data);}else{await widget.api.patch('/admin/students/$id',body:data);} _msg(id==null?'تمت إضافة الطالب.':'تم حفظ بيانات الطالب.');await _load();}catch(e){_msg('تعذر الحفظ: $e',bad:true);}
   }
+  Future<void> _scanImport() async {
+    if (_departments.isEmpty || _semesters.isEmpty) { _msg('تعذر تحميل الأقسام والفصول الدراسية من الخادم. حدّث البيانات ثم أعد المحاولة.', bad: true); return; }
+    final result = await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => ScannerImportDialog(api: widget.api, type: 'students', departments: _departments, semesters: _semesters));
+    if (result == true && mounted) await _load();
+  }
   Future<void> _toggle(Map<String,dynamic> s,bool active)async{try{await widget.api.patch('/admin/students/${s['id']}',body:{'active':active?1:0});_msg(active?'تم تفعيل الحساب.':'تم إيقاف الحساب.');await _load();}catch(e){_msg('تعذر تغيير الحالة: $e',bad:true);}}
   Future<void> _setModerator(Map<String,dynamic> s, bool grant) async {
     try {
@@ -45,7 +51,7 @@ class _StudentsPageState extends State<StudentsPage> {
   }
   @override Widget build(BuildContext context){final t=Theme.of(context);return ListView(padding:const EdgeInsets.all(20),children:[
     Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('إدارة الطلاب',style:t.textTheme.headlineMedium?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:5),const Text('بيانات الطلاب والتخصص والمستوى وحالة التسجيل.') ])),IconButton(onPressed:_busy?null:_load,tooltip:'تحديث',icon:const Icon(Icons.refresh))]),
-    const SizedBox(height:12),Wrap(spacing:10,runSpacing:10,children:[SizedBox(width:340,child:TextField(controller:_search,textInputAction:TextInputAction.search,onSubmitted:(_)=>_load(),decoration:InputDecoration(labelText:'بحث بالاسم أو الرقم الجامعي أو البريد',prefixIcon:const Icon(Icons.search),suffixIcon:IconButton(onPressed:_load,icon:const Icon(Icons.arrow_forward))))),FilledButton.icon(onPressed:()=>_edit(),icon:const Icon(Icons.person_add_alt_1),label:const Text('إضافة طالب'))]),
+    const SizedBox(height:12),Wrap(spacing:10,runSpacing:10,children:[SizedBox(width:340,child:TextField(controller:_search,textInputAction:TextInputAction.search,onSubmitted:(_)=>_load(),decoration:InputDecoration(labelText:'بحث بالاسم أو الرقم الجامعي أو البريد',prefixIcon:const Icon(Icons.search),suffixIcon:IconButton(onPressed:_load,icon:const Icon(Icons.arrow_forward))))),FilledButton.icon(onPressed:()=>_edit(),icon:const Icon(Icons.person_add_alt_1),label:const Text('إضافة طالب')), OutlinedButton.icon(onPressed:_scanImport,icon:const Icon(Icons.document_scanner_outlined),label:const Text('مسح واستيراد'))]),
     const SizedBox(height:14),if(_busy)const LinearProgressIndicator(),if(_error!=null)Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('تعذر تحميل البيانات: $_error'),TextButton(onPressed:_load,child:const Text('إعادة المحاولة'))]))),if(!_busy&&_error==null&&_students.isEmpty)const Padding(padding:EdgeInsets.all(28),child:Center(child:Text('لا توجد نتائج.'))),
     ..._students.map((s){final active=s['active']==1||s['active']==true;final reg=s['registered']==1||s['registered']==true;return Card(margin:const EdgeInsets.only(bottom:10),child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Row(children:[CircleAvatar(child:const Icon(Icons.school_outlined)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('${s['full_name']??'اسم غير متوفر'}',style:t.textTheme.titleMedium?.copyWith(fontWeight:FontWeight.w700)),Text('الرقم الجامعي: ${s['student_number']??'—'}'),if('${s['email']??''}'.isNotEmpty)Text('${s['email']}')])),PopupMenuButton<String>(onSelected:(v){if(v=='edit')_edit(s);if(v=='toggle')_toggle(s,!active);if(v=='delete')_delete(s);if(v=='moderator')_setModerator(s, !(s['is_moderator']==1||s['is_moderator']==true));},itemBuilder:(_)=>[const PopupMenuItem(value:'edit',child:Text('تعديل البيانات')),PopupMenuItem(value:'toggle',child:Text(active?'إيقاف الحساب':'تفعيل الحساب')),PopupMenuItem(value:'moderator',child:Text((s['is_moderator']==1||s['is_moderator']==true)?'إلغاء منصب مشرف الطالب':'تعيين مشرف طالب')),const PopupMenuItem(value:'delete',child:Text('حذف نهائي'))])]),const Divider(),Wrap(spacing:7,runSpacing:7,children:[_Pill('${_lookup(_departments,s['department_id'])}'),_Pill('${_lookup(_semesters,s['current_semester_id'])}'),_Pill(active?'الحساب نشط':'الحساب موقوف'),_Pill(reg?'مسجل في التطبيق':'غير مسجل'),if(s['is_moderator']==1||s['is_moderator']==true)_Pill('مشرف طالب')])])));}),
   ]);}

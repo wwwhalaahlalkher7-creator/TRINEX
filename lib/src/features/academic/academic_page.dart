@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
+import '../imports/scanner_import_dialog.dart';
 
 class AcademicPage extends StatefulWidget {
   const AcademicPage({super.key, required this.api, required this.initialTab});
@@ -115,6 +116,12 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: error ? Theme.of(context).colorScheme.error : null));
   }
 
+  Future<void> _scanSchedule() async {
+    if (_departments.isEmpty || _semesters.isEmpty || _subjects.isEmpty) { _message('تعذر تحميل الأقسام أو الفصول أو المواد من الخادم. حدّث البيانات ثم أعد المحاولة.', error: true); return; }
+    final result = await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => ScannerImportDialog(api: widget.api, type: 'schedule', departments: _departments, semesters: _semesters, subjects: _subjects));
+    if (result == true && mounted) await _loadAll();
+  }
+
   Future<void> _edit([Map<String, dynamic>? item]) async {
     if (_tabs.index > 1) { return; }
     final result = await showDialog<Map<String, dynamic>>(
@@ -179,7 +186,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
         const SizedBox(height: 14),
         if (_tabs.index < 2) TextField(controller: _search, onChanged: (_) => setState(() {}), decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'ابحث في $_title...', suffixIcon: _search.text.isEmpty ? null : IconButton(onPressed: () { _search.clear(); setState(() {}); }, icon: const Icon(Icons.close)))),
         if (_tabs.index < 2) const SizedBox(height: 12),
-        if (_tabs.index < 2) Row(mainAxisAlignment: MainAxisAlignment.center, children: [if (_tabs.index == 0) OutlinedButton.icon(onPressed: _syncing ? null : _syncDrive, icon: const Icon(Icons.cloud_sync_outlined), label: Text(_syncing ? 'جارٍ المزامنة…' : 'مزامنة الملفات')), const SizedBox(width: 10), FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: Text(_tabs.index == 0 ? 'إضافة مادة' : 'إضافة موعد'))]),
+        if (_tabs.index < 2) Row(mainAxisAlignment: MainAxisAlignment.center, children: [if (_tabs.index == 0) OutlinedButton.icon(onPressed: _syncing ? null : _syncDrive, icon: const Icon(Icons.cloud_sync_outlined), label: Text(_syncing ? 'جارٍ المزامنة…' : 'مزامنة الملفات')), if (_tabs.index == 1) OutlinedButton.icon(onPressed: _scanSchedule, icon: const Icon(Icons.document_scanner_outlined), label: const Text('مسح واستيراد جدول')), const SizedBox(width: 10), FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: Text(_tabs.index == 0 ? 'إضافة مادة' : 'إضافة موعد'))]),
         if (_tabs.index < 2) const SizedBox(height: 12),
         if (_loading && _activeRows.isEmpty) const Expanded(child: Center(child: CircularProgressIndicator()))
         else if (_error != null && _activeRows.isEmpty) Expanded(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.cloud_off_outlined, size: 42), const SizedBox(height: 12), Text(_error!, textAlign: TextAlign.center), const SizedBox(height: 12), OutlinedButton.icon(onPressed: _loadAll, icon: const Icon(Icons.refresh), label: const Text('إعادة المحاولة'))])))
