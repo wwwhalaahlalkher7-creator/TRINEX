@@ -201,10 +201,12 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
       if (longestEdge <= 1000) break;
       final targetEdge = (longestEdge * 0.82).round().clamp(1000, longestEdge - 1);
       final factor = targetEdge / longestEdge;
-      current = img.copyResize(current,
+      final resized = img.copyResize(current,
         width: (current.width * factor).round().clamp(1, current.width),
         height: (current.height * factor).round().clamp(1, current.height),
         interpolation: img.Interpolation.average);
+      if (resized == null) break;
+      current = resized;
     }
     // Final conservative attempt at the readability floor; do not degrade
     // indefinitely just to satisfy the provider size limit.
