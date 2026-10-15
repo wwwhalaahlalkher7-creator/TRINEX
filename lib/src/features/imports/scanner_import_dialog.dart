@@ -101,10 +101,10 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
         parsed = _parseGrid(CsvToListConverter(shouldParseNumbers: false).convert(utf8.decode(bytes, allowMalformed: true)));
       } else if (ext == 'xlsx') {
         final workbook = Excel.decodeBytes(bytes);
-        if (workbook.tables.isEmpty || workbook.tables.values.every((sheet) => sheet == null || sheet.rows.isEmpty)) {
+        if (workbook.tables.isEmpty || workbook.tables.values.every((sheet) => sheet.rows.isEmpty)) {
           throw const ApiServiceException('ملف Excel فارغ أو لا يحتوي على أوراق قابلة للقراءة.');
         }
-        final sheet = workbook.tables.values.firstWhere((sheet) => sheet != null && sheet.rows.isNotEmpty)!;
+        final sheet = workbook.tables.values.firstWhere((sheet) => sheet.rows.isNotEmpty);
         parsed = _parseGrid(sheet.rows.map((r) => r.map((c) => c?.value?.toString() ?? '').toList()).toList());
       } else if (['pdf','png','jpg','jpeg','webp','tif','tiff'].contains(ext)) {
         final mime = ext == 'pdf' ? 'application/pdf' : (ext == 'png' ? 'image/png' : (ext == 'webp' ? 'image/webp' : (ext == 'tif' || ext == 'tiff' ? 'image/tiff' : 'image/jpeg')));
@@ -183,6 +183,9 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
     if (working.length <= maxBytes) return _PreparedOcrUpload(working, outputName, outputMime);
 
     final decoded = img.decodeImage(working);
+    if (decoded == null) {
+      throw const ApiServiceException('تعذر قراءة الصورة أو ضغطها. جرّب صورة JPG أو PNG واضحة.');
+    }
     img.Image current = decoded;
     // Try high quality first. If the image is still too large, reduce its
     // longest edge gradually even when the source dimensions are below 900px.
@@ -205,9 +208,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
         width: (current.width * factor).round().clamp(1, current.width),
         height: (current.height * factor).round().clamp(1, current.height),
         interpolation: img.Interpolation.average);
-      // Some image package versions expose copyResize as nullable; retain the
-      // current valid image if resizing unexpectedly returns null.
-      current = resized ?? current;
+      current = resized;
     }
     // Final conservative attempt at the readability floor; do not degrade
     // indefinitely just to satisfy the provider size limit.
