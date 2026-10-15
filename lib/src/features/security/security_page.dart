@@ -114,8 +114,15 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
                 await widget.api.patch('/admin/imports/$id/records', body: {'records': editedRows});
                 if (dialogContext.mounted) { Navigator.pop(dialogContext, 'saved'); }
               } catch (e) {
-                if (dialogContext.mounted) { ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('تعذر حفظ التعديلات: $e'), backgroundColor: Theme.of(dialogContext).colorScheme.error)); }
-                setDialogState(() => saving = false);
+                if (dialogContext.mounted) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(
+                      content: Text('تعذر حفظ التعديلات: $e'),
+                      backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                    ),
+                  );
+                  setDialogState(() => saving = false);
+                }
               }
             }, icon: const Icon(Icons.save_outlined), label: Text(saving ? 'جارٍ الحفظ…' : 'حفظ التعديلات')),
             if (status == 'committed' && !editing) TextButton.icon(onPressed: () => Navigator.pop(dialogContext, 'rollback'), icon: const Icon(Icons.undo), label: const Text('التراجع عن العملية')),
