@@ -163,8 +163,8 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
         page = await document.getPage(1);
         final scale = (1800 / page.width).clamp(1.0, 2.0);
         final rendered = await page.render(
-          width: (page.width * scale).round(),
-          height: (page.height * scale).round(),
+          width: page.width * scale,
+          height: page.height * scale,
           format: PdfPageImageFormat.jpeg,
           quality: 82,
         );
@@ -183,9 +183,6 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
     if (working.length <= maxBytes) return _PreparedOcrUpload(working, outputName, outputMime);
 
     final decoded = img.decodeImage(working);
-    if (decoded == null) {
-      throw const ApiServiceException('تعذر قراءة الصورة لضغطها. جرّب تحويلها إلى JPG أو PNG ثم أعد المحاولة.');
-    }
     img.Image current = decoded;
     // Try high quality first. If the image is still too large, reduce its
     // longest edge gradually even when the source dimensions are below 900px.
