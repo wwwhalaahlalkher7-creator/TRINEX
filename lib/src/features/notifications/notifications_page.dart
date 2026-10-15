@@ -56,7 +56,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         const SizedBox(height: 10), TextFormField(controller: department, decoration: const InputDecoration(labelText: 'معرّف القسم المستهدف (اتركه فارغًا للكل)')),
         const SizedBox(height: 10), TextFormField(controller: semester, decoration: const InputDecoration(labelText: 'معرّف الفصل المستهدف (اتركه فارغًا للكل)')),
       ])))),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(context, {'title': title.text.trim(), 'body': body.text.trim(), 'type': type.text.trim().isEmpty ? 'general' : type.text.trim(), 'target_department_id': department.text.trim().isEmpty ? null : department.text.trim(), 'target_semester_id': semester.text.trim().isEmpty ? null : semester.text.trim()}); }, child: const Text('حفظ المسودة'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: () { if (formKey.currentState!.validate()) { Navigator.pop(context, {'title': title.text.trim(), 'body': body.text.trim(), 'type': type.text.trim().isEmpty ? 'general' : type.text.trim(), 'target_department_id': department.text.trim().isEmpty ? null : department.text.trim(), 'target_semester_id': semester.text.trim().isEmpty ? null : semester.text.trim()}); } }, child: const Text('حفظ المسودة'))],
     ));
     title.dispose(); body.dispose(); type.dispose(); department.dispose(); semester.dispose();
     if (result == null || !mounted) { return; }
@@ -65,7 +65,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ المسودة. لم يتم إرسالها.')));
       await _load();
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ المسودة: $e'))); }
+    } catch (e) { if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ المسودة: $e'))); } }
   }
 
   Future<void> _approveDraft(Map<String, dynamic> item) async {
@@ -82,7 +82,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       if (!mounted) { return; }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم اعتماد الإشعار ونشره. لم يُرسل تلقائيًا.')));
       await _load();
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر اعتماد المسودة: $e'))); }
+    } catch (e) { if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر اعتماد المسودة: $e'))); } }
   }
 
   Future<void> _send(Map<String, dynamic> item) async {
@@ -131,8 +131,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
             IconButton(onPressed: _loading ? null : _load, tooltip: 'تحديث', icon: const Icon(Icons.refresh)),
           ]),
           const SizedBox(height: 16),
-          Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-            const Icon(Icons.info_outline), const SizedBox(width: 12), Expanded(child: Text('هذه العملية تضيف المستهدفين وقوائم التسليم داخل النظام. إرسال إشعارات Push فعليًا يعتمد على عامل التسليم وإعدادات مزود الإشعارات على الخادم.')),
+          const Card(child: Padding(padding: EdgeInsets.all(16), child: Row(children: [
+            Icon(Icons.info_outline), SizedBox(width: 12), Expanded(child: Text('هذه العملية تضيف المستهدفين وقوائم التسليم داخل النظام. إرسال إشعارات Push فعليًا يعتمد على عامل التسليم وإعدادات مزود الإشعارات على الخادم.')),
           ]))),
           const SizedBox(height: 12),
           if (_loading && _items.isEmpty) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator())),

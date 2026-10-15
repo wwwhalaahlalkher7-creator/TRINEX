@@ -47,7 +47,7 @@ class ApiService {
       final code = errorValue is Map<String, dynamic> ? errorValue['code']?.toString() : null;
       final details = errorValue is Map<String, dynamic> ? errorValue['details']?.toString() : null;
       var message = decoded['message']?.toString() ?? nestedMessage ?? 'تعذّر تنفيذ الطلب (HTTP ${response.statusCode}).';
-      if (code != null && code.startsWith('IMPORT_')) message = '[$code] $message${details != null && details != 'null' && details.isNotEmpty ? '\n$details' : ''}';
+      if (code != null && code.startsWith('IMPORT_')) { message = '[$code] $message${details != null && details != 'null' && details.isNotEmpty ? '\n$details' : ''}'; }
       throw ApiServiceException(message, statusCode: response.statusCode);
     }
 
@@ -293,8 +293,8 @@ class ApiService {
       throw const ApiServiceException('حجم الملف يجب أن يكون أقل من أو يساوي 100 ميغابايت.');
     }
     var session = await sessionStore.readIncludingExpired();
-    if (session == null) throw const ApiServiceException('تسجيل الدخول مطلوب.', statusCode: 401);
-    if (session.isExpired) session = await _refreshSession(session);
+    if (session == null) { throw const ApiServiceException('تسجيل الدخول مطلوب.', statusCode: 401); }
+    if (session.isExpired) { session = await _refreshSession(session); }
     Future<http.Response> send(String token) async {
       final request = http.MultipartRequest('POST', _uri('/admin/imports/ocr'));
       request.headers['Accept'] = 'application/json';

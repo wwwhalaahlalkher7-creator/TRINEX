@@ -60,7 +60,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             const Expanded(child: Text('التحليلات والاستخدام', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
             DropdownButton<int>(
               value: _days,
-              onChanged: _loading ? null : (value) { if (value != null) setState(() => _days = value); _load(); },
+              onChanged: _loading ? null : (value) { if (value != null) { setState(() => _days = value); } _load(); },
               items: const [
                 DropdownMenuItem(value: 1, child: Text('24 ساعة')),
                 DropdownMenuItem(value: 7, child: Text('7 أيام')),

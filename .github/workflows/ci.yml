@@ -5,16 +5,6 @@ on:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
-    inputs:
-      platforms:
-        description: "Platforms to build manually"
-        required: true
-        type: choice
-        default: all
-        options:
-          - android
-          - windows
-          - all
 
 permissions:
   contents: read
@@ -45,7 +35,6 @@ jobs:
   build-android:
     name: Build Android APK
     needs: verify
-    if: github.event_name != 'workflow_dispatch' || inputs.platforms == 'android' || inputs.platforms == 'all'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -176,7 +165,6 @@ jobs:
   build-windows:
     name: Build Windows desktop
     needs: verify
-    if: github.event_name == 'workflow_dispatch' && (inputs.platforms == 'windows' || inputs.platforms == 'all')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

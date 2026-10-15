@@ -41,7 +41,7 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
       setState(() { _audit = _rows(results[0]['data']); _auth = _rows(results[1]['data']); _imports = _rows(results[2]['data']); });
     } catch (e) {
       if (mounted) { setState(() => _error = e.toString()); }
-    } finally { if (mounted) setState(() => _loading = false); }
+    } finally { if (mounted) { setState(() => _loading = false); } }
   }
 
   String _importStatus(dynamic value) => switch ('$value') {
@@ -114,7 +114,7 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
                 await widget.api.patch('/admin/imports/$id/records', body: {'records': editedRows});
                 if (dialogContext.mounted) { Navigator.pop(dialogContext, 'saved'); }
               } catch (e) {
-                if (dialogContext.mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ التعديلات: $e'), backgroundColor: Theme.of(context).colorScheme.error)); }
+                if (dialogContext.mounted) { ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('تعذر حفظ التعديلات: $e'), backgroundColor: Theme.of(dialogContext).colorScheme.error)); }
                 setDialogState(() => saving = false);
               }
             }, icon: const Icon(Icons.save_outlined), label: Text(saving ? 'جارٍ الحفظ…' : 'حفظ التعديلات')),

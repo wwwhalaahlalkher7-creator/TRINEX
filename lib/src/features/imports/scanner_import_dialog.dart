@@ -49,7 +49,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) { timer.cancel(); return; }
       setState(() { _countdown = (_countdown - 1).clamp(0, 10); });
-      if (_countdown == 0) timer.cancel();
+      if (_countdown == 0) { timer.cancel(); }
     });
   }
   List<Map<String, dynamic>> get _availableSubjects => widget.subjects.where((s) =>
@@ -65,9 +65,9 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
   String _time(dynamic value) {
     final raw = _digits('${value ?? ''}').trim();
     final m = RegExp(r'^(\d{1,2})(?::(\d{1,2}))?$').firstMatch(raw);
-    if (m == null) return raw;
+    if (m == null) { return raw; }
     final h = int.tryParse(m.group(1)!) ?? -1; final min = int.tryParse(m.group(2) ?? '0') ?? -1;
-    if (h < 0 || h > 23 || min < 0 || min > 59) return raw;
+    if (h < 0 || h > 23 || min < 0 || min > 59) { return raw; }
     return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
   }
   String _header(String value) => _digits(value).toLowerCase().replaceAll(RegExp(r'[\s_\-ـ]+'), '').replaceAll(RegExp(r'[أإآ]'), 'ا').replaceAll('ة','ه');
@@ -76,7 +76,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
     if (_departmentId == null || _semesterId == null) { setState(() => _error = 'اختر القسم والفصل الدراسي قبل بدء المسح.'); return; }
     final picked = await FilePicker.platform.pickFiles(type: FileType.custom,
       allowedExtensions: const ['csv', 'xlsx', 'pdf', 'png', 'jpg', 'jpeg', 'webp', 'tif', 'tiff'], withData: true, allowMultiple: false);
-    if (picked == null || picked.files.isEmpty) return;
+    if (picked == null || picked.files.isEmpty) { return; }
     final file = picked.files.single;
     if (file.size <= 0) { setState(() => _error = 'الملف فارغ. اختر ملفًا يحتوي على بيانات ثم أعد المحاولة.'); return; }
     if (file.size > 100 * 1024 * 1024) { setState(() => _error = 'حجم الملف يتجاوز 100 ميغابايت. اختر ملفًا أصغر ثم أعد المحاولة.'); return; }
@@ -94,7 +94,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
         final rawExisting = existing['data'];
         _existingSchedules = rawExisting is List ? rawExisting.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).where((r) => '${r['department_id']}' == _departmentId && '${r['semester_id']}' == _semesterId && (r['active'] == 1 || r['active'] == true || r['active'] == null)).toList() : [];
       }
-      if (_operationId == null || _operationId!.isEmpty) throw const ApiServiceException('لم يتم إنشاء عملية استيراد صالحة.');
+      if (_operationId == null || _operationId!.isEmpty) { throw const ApiServiceException('لم يتم إنشاء عملية استيراد صالحة.'); }
       final ext = file.extension?.toLowerCase() ?? '';
       List<Map<String, dynamic>> parsed;
       if (ext == 'csv') {
@@ -119,28 +119,28 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
       } else {
         throw const ApiServiceException('نوع الملف غير مدعوم. استخدم CSV أو Excel أو PDF أو صورة واضحة.');
       }
-      if (parsed.length > 2000) throw const ApiServiceException('اكتُشف أكثر من 2000 سجل. قسّم الملف إلى ملفات أصغر ثم أعد المحاولة.');
+      if (parsed.length > 2000) { throw const ApiServiceException('اكتُشف أكثر من 2000 سجل. قسّم الملف إلى ملفات أصغر ثم أعد المحاولة.'); }
       if (parsed.isEmpty) {
-        if (_students) parsed = [_studentRow(), _studentRow()];
+        if (_students) { parsed = [_studentRow(), _studentRow()]; }
         else parsed = [_scheduleRow(), _scheduleRow()];
         _notes.add('لم يتم التعرف على سجلات كاملة؛ الحقول الفارغة ظاهرة للمراجعة. أكملها أو احذف الصفوف غير المطلوبة.');
       }
-      if (!_students && _availableSubjects.isEmpty) _notes.add('لا توجد مواد نشطة لهذا القسم والفصل الدراسي. تحقق من النطاق أو أضف المواد أولًا.');
+      if (!_students && _availableSubjects.isEmpty) { _notes.add('لا توجد مواد نشطة لهذا القسم والفصل الدراسي. تحقق من النطاق أو أضف المواد أولًا.'); }
       await widget.api.patch('/admin/imports/$_operationId', body: {'records': parsed});
-      if (!mounted) return;
+      if (!mounted) { return; }
       setState(() { _rows = parsed; _review = true; _countdown = 10; });
       _countdownTimer?.cancel();
       _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted) { timer.cancel(); return; }
         setState(() { _countdown = (_countdown - 1).clamp(0, 10); });
-        if (_countdown == 0) timer.cancel();
+        if (_countdown == 0) { timer.cancel(); }
       });
     } catch (e) {
       if (_operationId != null && !_review) { try { await widget.api.delete('/admin/imports/$_operationId'); } catch (_) {} _operationId = null; }
-      if (mounted) setState(() => _error = _friendlyError(e));
+      if (mounted) { setState(() => _error = _friendlyError(e)); }
     } finally {
       // Source bytes are intentionally not retained in the review state.
-      if (mounted) setState(() => _working = false);
+      if (mounted) { setState(() => _working = false); }
     }
   }
 
@@ -159,7 +159,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
         if (document.pagesCount > 1) {
           throw const ApiServiceException('IMPORT_MULTIPAGE_FILE: يجب أن يحتوي PDF على صفحة واحدة فقط.');
         }
-        if (document.pagesCount < 1) throw const ApiServiceException('ملف PDF لا يحتوي على صفحات قابلة للقراءة.');
+        if (document.pagesCount < 1) { throw const ApiServiceException('ملف PDF لا يحتوي على صفحات قابلة للقراءة.'); }
         page = await document.getPage(1);
         final scale = (1800 / page.width).clamp(1.0, 2.0);
         final rendered = await page.render(
@@ -180,7 +180,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
       }
     }
 
-    if (working.length <= maxBytes) return _PreparedOcrUpload(working, outputName, outputMime);
+    if (working.length <= maxBytes) { return _PreparedOcrUpload(working, outputName, outputMime); }
 
     final decoded = img.decodeImage(working);
     if (decoded == null) {
@@ -201,7 +201,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
         }
       }
       final longestEdge = current.width > current.height ? current.width : current.height;
-      if (longestEdge <= 1000) break;
+      if (longestEdge <= 1000) { break; }
       final targetEdge = (longestEdge * 0.82).round().clamp(1000, longestEdge - 1);
       final factor = targetEdge / longestEdge;
       final resized = img.copyResize(current,
@@ -214,20 +214,20 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
     // indefinitely just to satisfy the provider size limit.
     for (final quality in <int>[72, 66, 60, 54]) {
       final encoded = Uint8List.fromList(img.encodeJpg(current, quality: quality));
-      if (encoded.length <= maxBytes) return _PreparedOcrUpload(encoded, outputFilename, 'image/jpeg');
+      if (encoded.length <= maxBytes) { return _PreparedOcrUpload(encoded, outputFilename, 'image/jpeg'); }
     }
     throw const ApiServiceException('IMPORT_FILE_OVER_PROVIDER_LIMIT: تعذر تقليل حجم الملف إلى أقل من 1 ميغابايت مع الحفاظ على وضوح النص.');
   }
 
   String _friendlyError(Object error) {
     final value = error.toString();
-    if (value.contains('IMPORT_MULTIPAGE_FILE')) return 'يحتوي المستند على أكثر من صفحة. أدرج صفحة واحدة فقط ثم أعد المسح؛ يمكن أن تحتوي الصفحة الواحدة على أسطر كثيرة.';
-    if (value.contains('IMPORT_OCR_NOT_CONFIGURED')) return 'خدمة OCR.space غير مهيأة على الخادم. أضف مفتاحها كسرّ في Cloudflare Worker.';
-    if (value.contains('IMPORT_FILE_OVER_PROVIDER_LIMIT')) return 'تعذر ضغط الملف إلى أقل من 1 ميغابايت مع الحفاظ على وضوح النص. جرّب مسحًا بدقة أقل أو أدخل البيانات يدويًا.';
-    if (value.contains('IMPORT_OCR_QUOTA_EXCEEDED')) return 'وصلت خدمة OCR إلى حد الاستخدام الحالي. لم يتم حفظ أي بيانات؛ يمكنك الإدخال يدويًا أو المحاولة لاحقًا.';
-    if (value.contains('IMPORT_FILE_TYPE_UNSUPPORTED')) return 'نوع الملف غير مدعوم لهذا المسار. استخدم CSV أو Excel أو PDF أو صورة.';
-    if (value.contains('IMPORT_FILE_TOO_LARGE')) return 'حجم الملف يتجاوز 100 ميغابايت.';
-    if (value.contains('IMPORT_OCR_EMPTY')) return 'لم يتمكن الماسح من قراءة نص واضح. حسّن وضوح الصورة أو استخدم قالبًا مدعومًا.';
+    if (value.contains('IMPORT_MULTIPAGE_FILE')) { return 'يحتوي المستند على أكثر من صفحة. أدرج صفحة واحدة فقط ثم أعد المسح؛ يمكن أن تحتوي الصفحة الواحدة على أسطر كثيرة.'; }
+    if (value.contains('IMPORT_OCR_NOT_CONFIGURED')) { return 'خدمة OCR.space غير مهيأة على الخادم. أضف مفتاحها كسرّ في Cloudflare Worker.'; }
+    if (value.contains('IMPORT_FILE_OVER_PROVIDER_LIMIT')) { return 'تعذر ضغط الملف إلى أقل من 1 ميغابايت مع الحفاظ على وضوح النص. جرّب مسحًا بدقة أقل أو أدخل البيانات يدويًا.'; }
+    if (value.contains('IMPORT_OCR_QUOTA_EXCEEDED')) { return 'وصلت خدمة OCR إلى حد الاستخدام الحالي. لم يتم حفظ أي بيانات؛ يمكنك الإدخال يدويًا أو المحاولة لاحقًا.'; }
+    if (value.contains('IMPORT_FILE_TYPE_UNSUPPORTED')) { return 'نوع الملف غير مدعوم لهذا المسار. استخدم CSV أو Excel أو PDF أو صورة.'; }
+    if (value.contains('IMPORT_FILE_TOO_LARGE')) { return 'حجم الملف يتجاوز 100 ميغابايت.'; }
+    if (value.contains('IMPORT_OCR_EMPTY')) { return 'لم يتمكن الماسح من قراءة نص واضح. حسّن وضوح الصورة أو استخدم قالبًا مدعومًا.'; }
     return value.replaceFirst('Exception: ', '');
   }
 
@@ -236,7 +236,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
 
   List<Map<String, dynamic>> _parseGrid(List<List<dynamic>> grid) {
     final nonEmpty = grid.map((r) => r.map((c) => _digits('$c').trim()).toList()).where((r) => r.any((c) => c.isNotEmpty)).toList();
-    if (nonEmpty.isEmpty) throw const ApiServiceException('لم يعثر الملف على صفوف تحتوي بيانات.');
+    if (nonEmpty.isEmpty) { throw const ApiServiceException('لم يعثر الملف على صفوف تحتوي بيانات.'); }
     final headers = nonEmpty.first.map(_header).toList();
     int find(List<String> names) => headers.indexWhere((h) => names.any((n) => h == _header(n) || h.contains(_header(n))));
     if (_students) {
@@ -276,14 +276,14 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
     final lines = text.split(RegExp(r'\r?\n')).map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
     final tableRows = <List<String>>[];
     for (final line in lines) {
-      if (!line.contains('|')) continue;
+      if (!line.contains('|')) { continue; }
       final cells = line.split('|').map((c) => c.trim()).toList();
-      if (cells.isNotEmpty && cells.first.isEmpty) cells.removeAt(0);
-      if (cells.isNotEmpty && cells.last.isEmpty) cells.removeLast();
-      if (cells.isEmpty || cells.every((c) => c.isEmpty || RegExp(r'^:?-{2,}:?$').hasMatch(c))) continue;
+      if (cells.isNotEmpty && cells.first.isEmpty) { cells.removeAt(0); }
+      if (cells.isNotEmpty && cells.last.isEmpty) { cells.removeLast(); }
+      if (cells.isEmpty || cells.every((c) => c.isEmpty || RegExp(r'^:?-{2,}:?$').hasMatch(c))) { continue; }
       tableRows.add(cells);
     }
-    if (tableRows.isNotEmpty) return _parseGrid(tableRows);
+    if (tableRows.isNotEmpty) { return _parseGrid(tableRows); }
     // A plain OCR transcript is intentionally not guessed into records. Return
     // empty so the reviewer gets editable blank rows and an explicit warning.
     return [];
@@ -295,23 +295,23 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
   Future<void> _closeDialog() async {
     final id = _operationId;
     if (id != null) { try { await widget.api.delete('/admin/imports/$id'); } catch (_) {} }
-    if (mounted) Navigator.of(context).pop(false);
+    if (mounted) { Navigator.of(context).pop(false); }
   }
 
   Future<void> _commit() async {
-    if (_operationId == null) return;
+    if (_operationId == null) { return; }
     setState(() { _working = true; _error = null; });
     try {
       final validation = await widget.api.post('/admin/imports/$_operationId/validate', body: {'records': _rows});
       if (validation['valid'] != true) {
         final errors = validation['errors'] is List ? (validation['errors'] as List).whereType<Map>().toList() : <Map>[];
         final message = errors.take(12).map((e) => 'السجل ${(int.tryParse('${e['index']}') ?? -1) + 1}: ${e['message'] ?? 'تحقق من البيانات'}').join('\n');
-        if (mounted) setState(() => _error = 'لم يتم الحفظ. صحح الأخطاء التالية أو احذف السجلات غير المطلوبة ثم أعد الاعتماد:\n$message');
+        if (mounted) { setState(() => _error = 'لم يتم الحفظ. صحح الأخطاء التالية أو احذف السجلات غير المطلوبة ثم أعد الاعتماد:\n$message'); }
         return;
       }
       await widget.api.patch('/admin/imports/$_operationId', body: {'records': _rows});
       final result = await widget.api.post('/admin/imports/$_operationId/commit', body: {'records': _rows});
-      if (!mounted) return;
+      if (!mounted) { return; }
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم اعتماد الاستيراد. السجلات المحفوظة: ${result['saved'] ?? 0}')));
     } catch (e) {
@@ -319,7 +319,7 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
         Navigator.of(context).pop(false);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('انتهت مهلة عملية الاستيراد. ارجع إلى صفحة الطلاب أو الجداول وابدأ عملية جديدة.')));
       } else if (mounted) { setState(() => _error = _friendlyError(e)); }
-    } finally { if (mounted) setState(() => _working = false); }
+    } finally { if (mounted) { setState(() => _working = false); } }
   }
 
   @override

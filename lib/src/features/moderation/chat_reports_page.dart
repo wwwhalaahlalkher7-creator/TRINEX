@@ -19,17 +19,17 @@ class _ChatReportsPageState extends State<ChatReportsPage> {
   List<Map<String, dynamic>> _rows(dynamic value) => value is List ? value.whereType<Map>().map((e) => Map<String,dynamic>.from(e)).toList() : [];
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
-    try { final r = await widget.api.get('/admin/moderation/chat-reports?status=$_status&limit=100'); if (mounted) setState(() => _items = _rows(r['data'])); }
-    catch(e) { if(mounted) setState(() => _error = e.toString()); }
-    finally { if(mounted) setState(() => _loading = false); }
+    try { final r = await widget.api.get('/admin/moderation/chat-reports?status=$_status&limit=100'); if (mounted) { setState(() => _items = _rows(r['data'])); } }
+    catch(e) { if(mounted) { setState(() => _error = e.toString()); } }
+    finally { if(mounted) { setState(() => _loading = false); } }
   }
   Future<void> _review(Map<String,dynamic> item, String status, String? messageStatus) async {
-    final id = item['id']?.toString() ?? ''; if(id.isEmpty) return;
+    final id = item['id']?.toString() ?? ''; if(id.isEmpty) { return; }
     setState(() => _busy.add(id));
     try { await widget.api.patch('/admin/moderation/chat-reports/$id', body: {'status':status, if(messageStatus != null) 'messageStatus':messageStatus});
       if(!mounted) return; ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث البلاغ وحالة الرسالة.'))); await _load();
-    } catch(e) { if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث البلاغ: $e'))); }
-    finally { if(mounted) setState(() => _busy.remove(id)); }
+    } catch(e) { if(mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث البلاغ: $e'))); } }
+    finally { if(mounted) { setState(() => _busy.remove(id)); } }
   }
   @override
   Widget build(BuildContext context) => RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.all(20), children: [

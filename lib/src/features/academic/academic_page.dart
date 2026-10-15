@@ -28,7 +28,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this, initialIndex: widget.initialTab == 2 ? 1 : 0);
-    _tabs.addListener(() { if (!_tabs.indexIsChanging && mounted) setState(() {}); });
+    _tabs.addListener(() { if (!_tabs.indexIsChanging && mounted) { setState(() {}); } });
     _loadAll();
   }
 
@@ -119,7 +119,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   Future<void> _scanSchedule() async {
     if (_departments.isEmpty || _semesters.isEmpty || _subjects.isEmpty) { _message('تعذر تحميل الأقسام أو الفصول أو المواد من الخادم. حدّث البيانات ثم أعد المحاولة.', error: true); return; }
     final result = await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => ScannerImportDialog(api: widget.api, type: 'schedule', departments: _departments, semesters: _semesters, subjects: _subjects));
-    if (result == true && mounted) await _loadAll();
+    if (result == true && mounted) { await _loadAll(); }
   }
 
   Future<void> _edit([Map<String, dynamic>? item]) async {
@@ -209,8 +209,8 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
       title: Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
       subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Text(subtitle)),
       isThreeLine: true,
-      trailing: PopupMenuButton<String>(onSelected: (action) { if (action == 'edit') _edit(row); if (action == 'delete') _delete(row); }, itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('تعديل')), PopupMenuItem(value: 'delete', child: Text('حذف'))]),
-      onTap: () { if (_tabs.index == 0) _openSubject(row); else _edit(row); },
+      trailing: PopupMenuButton<String>(onSelected: (action) { if (action == 'edit') { _edit(row); } if (action == 'delete') { _delete(row); } }, itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('تعديل')), PopupMenuItem(value: 'delete', child: Text('حذف'))]),
+      onTap: () { if (_tabs.index == 0) { _openSubject(row); } else _edit(row); },
       dense: false,
     ));
   }
@@ -228,7 +228,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
               leading: const Icon(Icons.picture_as_pdf_outlined),
               title: Text('${sheet['title'] ?? 'شيت دون عنوان'}'),
               subtitle: Text((sheet['source']?.toString() == 'drive') ? 'ملف متزامن' : 'ملف مضاف يدويًا'),
-              trailing: PopupMenuButton<String>(onSelected: (v) { Navigator.pop(dialogContext); if (v == 'edit') _editMaterial(sheet); if (v == 'delete') _deleteMaterial(sheet); }, itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('تعديل الشيت')), PopupMenuItem(value: 'delete', child: Text('حذف الشيت'))]),
+              trailing: PopupMenuButton<String>(onSelected: (v) { Navigator.pop(dialogContext); if (v == 'edit') { _editMaterial(sheet); } if (v == 'delete') { _deleteMaterial(sheet); } }, itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('تعديل الشيت')), PopupMenuItem(value: 'delete', child: Text('حذف الشيت'))]),
             )).toList())),
         actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إغلاق')), FilledButton.icon(onPressed: () { Navigator.pop(dialogContext); _addSheet(subject); }, icon: const Icon(Icons.add), label: const Text('إضافة شيت PDF'))],
       );
@@ -255,7 +255,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   }
 
   String _lookupName(List<Map<String, dynamic>> rows, dynamic id) {
-    for (final row in rows) { if (row['id']?.toString() == id?.toString()) return '${row['name_ar'] ?? row['name'] ?? row['title'] ?? id}'; }
+    for (final row in rows) { if (row['id']?.toString() == id?.toString()) { return '${row['name_ar'] ?? row['name'] ?? row['title'] ?? id}'; } }
     return 'غير محدد';
   }
 
@@ -341,7 +341,7 @@ class _AcademicEditorState extends State<_AcademicEditor> {
     final current = key == 'start_time' ? _startPicker : _endPicker;
     final picked = await showTimePicker(context: context, initialTime: current ?? TimeOfDay.now(), helpText: key == 'start_time' ? 'اختر وقت البداية' : 'اختر وقت النهاية', builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false), child: child!));
     if (picked == null || !mounted) { return; }
-    setState(() { if (key == 'start_time') _startPicker = picked; else _endPicker = picked; _controllers[key]!.text = _displayTime(picked); });
+    setState(() { if (key == 'start_time') { _startPicker = picked; } else _endPicker = picked; _controllers[key]!.text = _displayTime(picked); });
   }
 
   String _label(String key) => switch (key) {

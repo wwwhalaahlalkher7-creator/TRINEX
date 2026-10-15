@@ -660,7 +660,7 @@ class _NavigationRailPanel extends StatelessWidget {
 }
 
 List<AdminSection> _compactSections(List<AdminSection> visible) {
-  final preferred = const [
+  const preferred = [
     AdminSection.overview,
     AdminSection.students,
     AdminSection.content,

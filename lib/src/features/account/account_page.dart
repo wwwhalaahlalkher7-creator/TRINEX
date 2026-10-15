@@ -25,7 +25,7 @@ class _AccountPageState extends State<AccountPage> {
   String _email = '';
   @override
   void initState() { super.initState(); _displayName = widget.session.displayName; _loadProfile(); }
-  Future<void> _loadProfile() async { try { final r = await widget.api.get('/auth/staff/profile'); final data = r['data'] is Map ? Map<String,dynamic>.from(r['data']) : r; if (mounted) setState(() { _displayName = (data['displayName'] ?? data['display_name'] ?? _displayName).toString(); _email = (data['email'] ?? '').toString(); }); } catch (_) { /* Profile endpoint can be added with the backend follow-up. */ } }
+  Future<void> _loadProfile() async { try { final r = await widget.api.get('/auth/staff/profile'); final data = r['data'] is Map ? Map<String,dynamic>.from(r['data']) : r; if (mounted) { setState(() { _displayName = (data['displayName'] ?? data['display_name'] ?? _displayName).toString(); _email = (data['email'] ?? '').toString(); }); } } catch (_) { /* Profile endpoint can be added with the backend follow-up. */ } }
 
   @override
   void dispose() { _current.dispose(); _next.dispose(); _confirm.dispose(); super.dispose(); }
@@ -41,7 +41,7 @@ class _AccountPageState extends State<AccountPage> {
         const SizedBox(height: 12),
         TextFormField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'البريد الإلكتروني'), validator: (v) => v != null && v.trim().isNotEmpty && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim()) ? 'البريد الإلكتروني غير صالح' : null),
       ]))),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () { if (form.currentState!.validate()) Navigator.pop(dialogContext, {'displayName': name.text.trim(), 'email': email.text.trim()}); }, child: const Text('حفظ'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')), FilledButton(onPressed: () { if (form.currentState!.validate()) { Navigator.pop(dialogContext, {'displayName': name.text.trim(), 'email': email.text.trim()}); } }, child: const Text('حفظ'))],
     ));
     name.dispose(); email.dispose();
     if (data == null || !mounted) { return; }
@@ -50,7 +50,7 @@ class _AccountPageState extends State<AccountPage> {
       if (!mounted) { return; }
       setState(() { _displayName = data['displayName']!; _email = data['email']!; });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات المشرف.')));
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث البيانات: $e'))); }
+    } catch (e) { if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث البيانات: $e'))); } }
   }
 
   Future<void> _changePassword() async {
@@ -66,7 +66,7 @@ class _AccountPageState extends State<AccountPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تغيير كلمة المرور. أُبطلت الجلسات الأخرى لهذا الحساب.')));
     } catch (e) {
       if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تغيير كلمة المرور: $e'))); }
-    } finally { if (mounted) setState(() => _busy = false); }
+    } finally { if (mounted) { setState(() => _busy = false); } }
   }
 
   @override

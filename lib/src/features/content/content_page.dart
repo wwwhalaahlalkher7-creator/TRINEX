@@ -89,11 +89,11 @@ class _ContentPageState extends State<ContentPage> {
   String _eventStatus(Map<String, dynamic> item) {
     final start = _date(item['event_at']);
     final end = _date(item['end_at']);
-    if (end != null && !_today.isBefore(DateTime(end.year, end.month, end.day).add(const Duration(days: 1)))) return 'منتهي';
-    if (start == null && end == null) return 'جارٍ الآن';
-    if (start == null) return 'جارٍ الآن';
+    if (end != null && !_today.isBefore(DateTime(end.year, end.month, end.day).add(const Duration(days: 1)))) { return 'منتهي'; }
+    if (start == null && end == null) { return 'جارٍ الآن'; }
+    if (start == null) { return 'جارٍ الآن'; }
     final startDay = DateTime(start.year, start.month, start.day);
-    if (_today.isBefore(startDay)) return 'قريبًا';
+    if (_today.isBefore(startDay)) { return 'قريبًا'; }
     return 'جارٍ الآن';
   }
 
@@ -239,7 +239,7 @@ class _ContentPageState extends State<ContentPage> {
               ])),
               if (canEdit) PopupMenuButton<String>(
                 tooltip: 'إجراءات السجل',
-                onSelected: (value) { if (value == 'edit') _edit(item); if (value == 'delete') _delete(item); },
+                onSelected: (value) { if (value == 'edit') { _edit(item); } if (value == 'delete') { _delete(item); } },
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('تعديل'), contentPadding: EdgeInsets.zero)),
                   PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('حذف'), contentPadding: EdgeInsets.zero)),
@@ -286,9 +286,9 @@ class _ContentEditorState extends State<_ContentEditor> {
 
   DateTime? _readDate(String value) {
     final raw = value.trim();
-    final iso = DateTime.tryParse(raw); if (iso != null) return iso;
+    final iso = DateTime.tryParse(raw); if (iso != null) { return iso; }
     final parts = raw.split('/');
-    if (parts.length == 3) { final d = int.tryParse(parts[0]); final m = int.tryParse(parts[1]); final y = int.tryParse(parts[2]); if (d != null && m != null && y != null) return DateTime(y,m,d); }
+    if (parts.length == 3) { final d = int.tryParse(parts[0]); final m = int.tryParse(parts[1]); final y = int.tryParse(parts[2]); if (d != null && m != null && y != null) { return DateTime(y,m,d); } }
     return null;
   }
   String _isoDate(String value) { final date = _readDate(value); return date == null ? '' : DateTime(date.year,date.month,date.day).toIso8601String(); }
@@ -316,8 +316,8 @@ class _ContentEditorState extends State<_ContentEditor> {
       final url = uploaded['url']?.toString() ?? '';
       if (url.isEmpty) { throw const ApiServiceException('لم يُرجع الخادم رابط الصورة.'); }
       if (mounted) { setState(() => _imageUrl.text = url); }
-    } catch (e) { if (mounted) setState(() => _imageError = e.toString()); }
-    finally { if (mounted) setState(() => _uploadingImage = false); }
+    } catch (e) { if (mounted) { setState(() => _imageError = e.toString()); } }
+    finally { if (mounted) { setState(() => _uploadingImage = false); } }
   }
 
   @override
@@ -336,7 +336,7 @@ class _ContentEditorState extends State<_ContentEditor> {
     _achievedAt = TextEditingController(text: item['achieved_at']?.toString() ?? '');
     _publishAt = TextEditingController(text: (item['publish_at'] ?? item['event_at'] ?? '').toString());
     _expiresAt = TextEditingController(text: item['expires_at']?.toString() ?? '');
-    for (final controller in [_publishAt, _eventAt, _endAt, _achievedAt, _expiresAt]) { final formatted = _displayDate(controller.text); if (formatted.isNotEmpty) controller.text = formatted; }
+    for (final controller in [_publishAt, _eventAt, _endAt, _achievedAt, _expiresAt]) { final formatted = _displayDate(controller.text); if (formatted.isNotEmpty) { controller.text = formatted; } }
     _targetDepartment = TextEditingController(text: item['target_department_id']?.toString() ?? '');
     _targetSemester = TextEditingController(text: item['target_semester_id']?.toString() ?? '');
     _highlightsTitle = TextEditingController(text: item['highlights_title']?.toString() ?? 'أبرز المحاور');
@@ -345,7 +345,7 @@ class _ContentEditorState extends State<_ContentEditor> {
     if (rawHighlights is List) {
       highlightsText = rawHighlights.join('\n');
     } else if (rawHighlights is String && rawHighlights.trim().startsWith('[')) {
-      try { final parsed = jsonDecode(rawHighlights); if (parsed is List) highlightsText = parsed.join('\n'); } catch (_) { /* Keep the original value visible for manual correction. */ }
+      try { final parsed = jsonDecode(rawHighlights); if (parsed is List) { highlightsText = parsed.join('\n'); } } catch (_) { /* Keep the original value visible for manual correction. */ }
     }
     _highlights = TextEditingController(text: highlightsText);
   }
@@ -361,8 +361,8 @@ class _ContentEditorState extends State<_ContentEditor> {
     final title = _title.text.trim();
     final body = _body.text.trim();
     final todayIso = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day).toIso8601String();
-    if (widget.kind == _ContentKind.news && _publishAt.text.trim().isEmpty) _publishAt.text = _displayDate(todayIso);
-    if (widget.kind == _ContentKind.achievements && _achievedAt.text.trim().isEmpty) _achievedAt.text = _displayDate(todayIso);
+    if (widget.kind == _ContentKind.news && _publishAt.text.trim().isEmpty) { _publishAt.text = _displayDate(todayIso); }
+    if (widget.kind == _ContentKind.achievements && _achievedAt.text.trim().isEmpty) { _achievedAt.text = _displayDate(todayIso); }
     if (widget.kind == _ContentKind.events && _eventAt.text.trim().isEmpty && _endAt.text.trim().isEmpty) {
       // Both event dates are optional; absence of both means the event is ongoing.
     }

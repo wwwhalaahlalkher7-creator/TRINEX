@@ -26,8 +26,8 @@ class _EinoMonitorPageState extends State<EinoMonitorPage> {
       final result = await widget.api.get('/admin/security/eino-monitor?hours=$_hours&limit=100');
       if (mounted) setState(() => _data = result['data'] is Map
           ? Map<String, dynamic>.from(result['data'] as Map) : result);
-    } catch (e) { if (mounted) setState(() => _error = e.toString()); }
-    finally { if (mounted) setState(() => _loading = false); }
+    } catch (e) { if (mounted) { setState(() => _error = e.toString()); } }
+    finally { if (mounted) { setState(() => _loading = false); } }
   }
 
   Widget _metric(String title, String value, IconData icon) => Expanded(child: Card(child: Padding(

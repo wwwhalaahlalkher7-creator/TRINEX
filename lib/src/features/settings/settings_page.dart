@@ -24,9 +24,9 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() { _loading = true; _error = null; });
     try {
       final result = await widget.api.get('/admin/settings');
-      if (mounted) setState(() => _items = _rows(result['data']).where((item) { final key = item['key']?.toString() ?? ''; return key.startsWith('public.') || key == 'Logo'; }).toList());
-    } catch (e) { if (mounted) setState(() => _error = e.toString()); }
-    finally { if (mounted) setState(() => _loading = false); }
+      if (mounted) { setState(() => _items = _rows(result['data']).where((item) { final key = item['key']?.toString() ?? ''; return key.startsWith('public.') || key == 'Logo'; }).toList()); }
+    } catch (e) { if (mounted) { setState(() => _error = e.toString()); } }
+    finally { if (mounted) { setState(() => _loading = false); } }
   }
 
   dynamic _parseStored(dynamic raw) {
@@ -42,13 +42,13 @@ class _SettingsPageState extends State<SettingsPage> {
     final result = await showDialog<Map<String, dynamic>>(context: context, builder: (context) => AlertDialog(
       title: Text(isNew ? 'إضافة إعداد' : 'تعديل الإعداد'),
       content: SizedBox(width: 560, child: Form(key: formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextFormField(controller: keyController, enabled: isNew, decoration: const InputDecoration(labelText: 'مفتاح الإعداد'), validator: (v) { final key = v?.trim() ?? ''; if (key.isEmpty) return 'المفتاح مطلوب'; if (key.length > 128) return 'الحد الأقصى 128 حرفًا'; if (!(key.startsWith('public.') || key == 'Logo')) return 'يسمح فقط بمفاتيح public.* أو Logo'; return null; }),
+        TextFormField(controller: keyController, enabled: isNew, decoration: const InputDecoration(labelText: 'مفتاح الإعداد'), validator: (v) { final key = v?.trim() ?? ''; if (key.isEmpty) { return 'المفتاح مطلوب'; } if (key.length > 128) { return 'الحد الأقصى 128 حرفًا'; } if (!(key.startsWith('public.') || key == 'Logo')) { return 'يسمح فقط بمفاتيح public.* أو Logo'; } return null; }),
         const SizedBox(height: 12),
         TextFormField(controller: valueController, minLines: 5, maxLines: 12, decoration: const InputDecoration(labelText: 'القيمة بصيغة JSON', alignLabelWithHint: true, hintText: '{\n  "enabled": true\n}'), validator: (v) { try { jsonDecode(v ?? ''); return null; } catch (_) { return 'أدخل JSON صحيحًا'; } }),
       ])))),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-        FilledButton(onPressed: () { if (!formKey.currentState!.validate()) return; Navigator.pop(context, {'key': keyController.text.trim(), 'value': jsonDecode(valueController.text)}); }, child: const Text('حفظ')),
+        FilledButton(onPressed: () { if (!formKey.currentState!.validate()) { return; } Navigator.pop(context, {'key': keyController.text.trim(), 'value': jsonDecode(valueController.text)}); }, child: const Text('حفظ')),
       ],
     ));
     keyController.dispose(); valueController.dispose();
@@ -67,7 +67,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) => RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.all(20), children: [
     Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('إعدادات النظام', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 5), const Text('إدارة إعدادات العرض العامة public.* والشعار فقط. غيّر القيم عند معرفة أثرها على الموقع والتطبيق.') ])), IconButton(onPressed: _loading ? null : _load, tooltip: 'تحديث', icon: const Icon(Icons.refresh))]),
     const SizedBox(height: 12),
-    Card(child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [const Icon(Icons.warning_amber_outlined), const SizedBox(width: 10), const Expanded(child: Text('القيم تُحفظ بصيغة JSON. تغيير مفتاح يستخدمه الموقع قد يؤثر على واجهته أيضًا؛ احتفظ بنسخة من القيمة السابقة قبل تعديل إعداد مهم.'))]))),
+    const Card(child: Padding(padding: EdgeInsets.all(12), child: Row(children: [Icon(Icons.warning_amber_outlined), SizedBox(width: 10), Expanded(child: Text('القيم تُحفظ بصيغة JSON. تغيير مفتاح يستخدمه الموقع قد يؤثر على واجهته أيضًا؛ احتفظ بنسخة من القيمة السابقة قبل تعديل إعداد مهم.'))]))),
     const SizedBox(height: 12),
     Align(alignment: AlignmentDirectional.centerEnd, child: FilledButton.icon(onPressed: () => _edit(null), icon: const Icon(Icons.add), label: const Text('إضافة إعداد'))),
     if (_loading && _items.isEmpty) const Padding(padding: EdgeInsets.all(30), child: Center(child: CircularProgressIndicator())),
