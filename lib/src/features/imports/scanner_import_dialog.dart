@@ -205,8 +205,9 @@ class _ScannerImportDialogState extends State<ScannerImportDialog> {
         width: (current.width * factor).round().clamp(1, current.width),
         height: (current.height * factor).round().clamp(1, current.height),
         interpolation: img.Interpolation.average);
-      if (resized == null) break;
-      current = resized;
+      // Some image package versions expose copyResize as nullable; retain the
+      // current valid image if resizing unexpectedly returns null.
+      current = resized ?? current;
     }
     // Final conservative attempt at the readability floor; do not degrade
     // indefinitely just to satisfy the provider size limit.
