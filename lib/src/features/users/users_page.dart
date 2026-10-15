@@ -35,7 +35,7 @@ class _StudentsPageState extends State<StudentsPage> {
   Future<void> _scanImport() async {
     if (_departments.isEmpty || _semesters.isEmpty) { _msg('تعذر تحميل الأقسام والفصول الدراسية من الخادم. حدّث البيانات ثم أعد المحاولة.', bad: true); return; }
     final result = await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => ScannerImportDialog(api: widget.api, type: 'students', departments: _departments, semesters: _semesters));
-    if (result == true && mounted) await _load();
+    if (result == true && mounted) { await _load(); }
   }
   Future<void> _toggle(Map<String,dynamic> s,bool active)async{try{await widget.api.patch('/admin/students/${s['id']}',body:{'active':active?1:0});_msg(active?'تم تفعيل الحساب.':'تم إيقاف الحساب.');await _load();}catch(e){_msg('تعذر تغيير الحالة: $e',bad:true);}}
   Future<void> _setModerator(Map<String,dynamic> s, bool grant) async {

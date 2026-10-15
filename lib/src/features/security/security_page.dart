@@ -51,10 +51,10 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
 
   Future<void> _openImport(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
-    if (id.isEmpty) return;
+    if (id.isEmpty) { return; }
     try {
       final response = await widget.api.get('/admin/imports/$id');
-      if (!mounted) return;
+      if (!mounted) { return; }
       final detail = Map<String, dynamic>.from(response);
       final rawRows = detail['reviewed'];
       final rows = rawRows is List ? rawRows.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList() : <Map<String, dynamic>>[];
@@ -65,7 +65,7 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
         try {
           final result = await widget.api.get('/admin/subjects?limit=100');
           final raw = result['data'];
-          if (raw is List) subjects = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList();
+          if (raw is List) { subjects = raw.whereType<Map>().map((r) => Map<String, dynamic>.from(r)).toList(); }
         } catch (_) {}
       }
       final editedRows = rows.map((r) => Map<String, dynamic>.from(r)).toList();
@@ -98,8 +98,8 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
               final currentDay = int.tryParse('${r['dayOfWeek'] ?? r['day_of_week'] ?? 0}') ?? 0;
               return Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Column(children: [
                 Text('الحصة ${i + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                DropdownButtonFormField<String>(value: subjects.any((s) => '${s['id']}' == currentSubject) ? currentSubject : null, decoration: const InputDecoration(labelText: 'المادة'), items: subjects.where((s) => '${s['department_id']}' == '${detail['department_id']}' && '${s['semester_id']}' == '${detail['semester_id']}').map((s) => DropdownMenuItem(value: '${s['id']}', child: Text('${s['name_ar'] ?? s['name_en'] ?? s['id']}'))).toList(), onChanged: (v) => setDialogState(() { editedRows[i]['subjectId'] = v ?? ''; editedRows[i]['subjectName'] = (subjects.where((s) => '${s['id']}' == v).map((s) => '${s['name_ar'] ?? s['name_en'] ?? s['id']}').toList().isEmpty ? '' : subjects.where((s) => '${s['id']}' == v).map((s) => '${s['name_ar'] ?? s['name_en'] ?? s['id']}').first); })),
-                DropdownButtonFormField<int>(value: currentDay.clamp(0, 6).toInt(), decoration: const InputDecoration(labelText: 'اليوم'), items: const [DropdownMenuItem(value:0,child:Text('الأحد')),DropdownMenuItem(value:1,child:Text('الاثنين')),DropdownMenuItem(value:2,child:Text('الثلاثاء')),DropdownMenuItem(value:3,child:Text('الأربعاء')),DropdownMenuItem(value:4,child:Text('الخميس')),DropdownMenuItem(value:5,child:Text('الجمعة')),DropdownMenuItem(value:6,child:Text('السبت'))], onChanged: (v) => setDialogState(() => editedRows[i]['dayOfWeek'] = v ?? 0)),
+                DropdownButtonFormField<String>(initialValue: subjects.any((s) => '${s['id']}' == currentSubject) ? currentSubject : null, decoration: const InputDecoration(labelText: 'المادة'), items: subjects.where((s) => '${s['department_id']}' == '${detail['department_id']}' && '${s['semester_id']}' == '${detail['semester_id']}').map((s) => DropdownMenuItem(value: '${s['id']}', child: Text('${s['name_ar'] ?? s['name_en'] ?? s['id']}'))).toList(), onChanged: (v) => setDialogState(() { editedRows[i]['subjectId'] = v ?? ''; editedRows[i]['subjectName'] = (subjects.where((s) => '${s['id']}' == v).map((s) => '${s['name_ar'] ?? s['name_en'] ?? s['id']}').toList().isEmpty ? '' : subjects.where((s) => '${s['id']}' == v).map((s) => '${s['name_ar'] ?? s['name_en'] ?? s['id']}').first); })),
+                DropdownButtonFormField<int>(initialValue: currentDay.clamp(0, 6).toInt(), decoration: const InputDecoration(labelText: 'اليوم'), items: const [DropdownMenuItem(value:0,child:Text('الأحد')),DropdownMenuItem(value:1,child:Text('الاثنين')),DropdownMenuItem(value:2,child:Text('الثلاثاء')),DropdownMenuItem(value:3,child:Text('الأربعاء')),DropdownMenuItem(value:4,child:Text('الخميس')),DropdownMenuItem(value:5,child:Text('الجمعة')),DropdownMenuItem(value:6,child:Text('السبت'))], onChanged: (v) => setDialogState(() => editedRows[i]['dayOfWeek'] = v ?? 0)),
                 Row(children: [Expanded(child: TextFormField(initialValue: '${r['startTime'] ?? r['start_time'] ?? ''}', decoration: const InputDecoration(labelText: 'البداية'), onChanged: (v) => editedRows[i]['startTime'] = v)), const SizedBox(width: 8), Expanded(child: TextFormField(initialValue: '${r['endTime'] ?? r['end_time'] ?? ''}', decoration: const InputDecoration(labelText: 'النهاية'), onChanged: (v) => editedRows[i]['endTime'] = v))]),
                 Row(children: [Expanded(child: TextFormField(initialValue: '${r['room'] ?? ''}', decoration: const InputDecoration(labelText: 'القاعة'), onChanged: (v) => editedRows[i]['room'] = v)), const SizedBox(width: 8), Expanded(child: TextFormField(initialValue: '${r['lecturer'] ?? ''}', decoration: const InputDecoration(labelText: 'المدرّس'), onChanged: (v) => editedRows[i]['lecturer'] = v))]),
               ]));
@@ -112,9 +112,9 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
               setDialogState(() => saving = true);
               try {
                 await widget.api.patch('/admin/imports/$id/records', body: {'records': editedRows});
-                if (dialogContext.mounted) Navigator.pop(dialogContext, 'saved');
+                if (dialogContext.mounted) { Navigator.pop(dialogContext, 'saved'); }
               } catch (e) {
-                if (dialogContext.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ التعديلات: $e'), backgroundColor: Theme.of(context).colorScheme.error));
+                if (dialogContext.mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ التعديلات: $e'), backgroundColor: Theme.of(context).colorScheme.error)); }
                 setDialogState(() => saving = false);
               }
             }, icon: const Icon(Icons.save_outlined), label: Text(saving ? 'جارٍ الحفظ…' : 'حفظ التعديلات')),
@@ -128,23 +128,23 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
         await _load();
         return;
       }
-      if (action != 'rollback' || !mounted) return;
+      if (action != 'rollback' || !mounted) { return; }
       final confirmed = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
         title: const Text('تأكيد التراجع عن الاستيراد'),
         content: const Text('سيحاول النظام التراجع عن السجلات التي لم تتغير منذ الاستيراد. إذا تغير أي سجل، فسيُوقف التراجع بالكامل لحماية التعديلات الأحدث.'),
         actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('تأكيد التراجع'))],
       ));
-      if (confirmed != true || !mounted) return;
+      if (confirmed != true || !mounted) { return; }
       try {
         final result = await widget.api.post('/admin/imports/$id/rollback');
-        if (!mounted) return;
+        if (!mounted) { return; }
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم التراجع عن ${result['rolledBack'] ?? 0} سجل.')));
         await _load();
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر التراجع: $e'), backgroundColor: Theme.of(context).colorScheme.error));
+        if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر التراجع: $e'), backgroundColor: Theme.of(context).colorScheme.error)); }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر فتح مراجعة العملية: $e'), backgroundColor: Theme.of(context).colorScheme.error));
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر فتح مراجعة العملية: $e'), backgroundColor: Theme.of(context).colorScheme.error)); }
     }
   }
 
@@ -154,8 +154,8 @@ class _SecurityPageState extends State<SecurityPage> with SingleTickerProviderSt
   }
 
   Widget _importList() {
-    if (_loading && _imports.isEmpty) return const Center(child: CircularProgressIndicator());
-    if (_imports.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('لا توجد عمليات استيراد مسجلة.')));
+    if (_loading && _imports.isEmpty) { return const Center(child: CircularProgressIndicator()); }
+    if (_imports.isEmpty) { return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('لا توجد عمليات استيراد مسجلة.'))); }
     return ListView.separated(padding: const EdgeInsets.all(16), itemCount: _imports.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, index) {
       final item = _imports[index];
       final isStudents = '${item['import_type']}' == 'students';
