@@ -5,11 +5,23 @@ import '../imports/scanner_import_dialog.dart';
 List<Map<String, dynamic>> _asRows(dynamic v) => v is List ? v.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
 String _rowName(Map<String, dynamic> r) => (r['name_ar'] ?? r['name'] ?? r['title'] ?? r['code'] ?? r['id'] ?? 'غير محدد').toString();
 
-// Display-only abbreviation used exclusively by the students list.
-// The canonical department name remains unchanged everywhere else.
+// Display-only abbreviation for the department pill in the added-students list.
+// Department names are stored unchanged; accept the names/aliases used by existing data.
 String _studentListDepartmentName(String value) {
-  final normalized = value.trim();
-  if (normalized == 'الكهرباء الإلكترونية') return 'كهرباء';
+  var normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+  normalized = normalized
+      .replaceFirst(RegExp(r'^(الهندسة|هندسة)\s+'), '')
+      .replaceAll('أ', 'ا')
+      .replaceAll('إ', 'ا');
+  const electricalElectronicsNames = <String>{
+    'كهرباء إلكترونية',
+    'كهرباء الكترونية',
+    'الكهرباء الإلكترونية',
+    'الكهرباء الالكترونية',
+    'الكهربائية الإلكترونية',
+    'الكهربائية الالكترونية',
+  };
+  if (electricalElectronicsNames.contains(normalized)) return 'كهرباء';
   return value;
 }
 

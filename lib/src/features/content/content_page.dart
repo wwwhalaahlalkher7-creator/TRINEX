@@ -171,27 +171,57 @@ class _ContentPageState extends State<ContentPage> {
           if (canEdit) FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('إضافة محتوى')),
         ]),
         const SizedBox(height: 20),
-        Center(child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            for (final kind in _kinds) ...[
-              Padding(
-                padding: const EdgeInsetsDirectional.only(end: 8),
-                child: SizedBox(width: 158, height: 58, child: Material(
-                  color: _kind == kind ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(borderRadius: BorderRadius.circular(14), onTap: () {
-                    setState(() { _kind = kind; _items = []; });
-                    _load();
-                  }, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(kind.icon, size: 21, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 8), Flexible(child: Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant))),
-                  ]))),
-                )),
-              ),
-            ],
-          ]),
-        )),
+        // Fixed, responsive selector: all three content types remain visible without horizontal scrolling.
+        LayoutBuilder(builder: (context, constraints) {
+          final compact = constraints.maxWidth < 420;
+          return Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final kind in _kinds)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Material(
+                        color: _kind == kind ? theme.colorScheme.primaryContainer : Colors.transparent,
+                        borderRadius: BorderRadius.circular(13),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(13),
+                          onTap: () {
+                            if (_kind == kind) return;
+                            setState(() { _kind = kind; _items = []; _query = ''; });
+                            _load();
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 10, vertical: 11),
+                            child: compact
+                                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(kind.icon, size: 21, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant),
+                                    const SizedBox(height: 5),
+                                    Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                                      style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant)),
+                                  ])
+                                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                    Icon(kind.icon, size: 20, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant),
+                                    const SizedBox(width: 8),
+                                    Flexible(child: Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant))),
+                                  ]),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
         const SizedBox(height: 12),
         Wrap(spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
           SizedBox(width: 300, child: TextField(

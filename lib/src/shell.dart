@@ -444,7 +444,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 ]),
               ),
             LayoutBuilder(builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1250 ? 4 : constraints.maxWidth >= 480 ? 2 : 1;
+              // Keep the general statistics cards in two columns on mobile.
+              final columns = constraints.maxWidth >= 1250 ? 4 : 2;
               final width = (constraints.maxWidth - (columns - 1) * 14) / columns;
               return Wrap(
                 spacing: 14,
