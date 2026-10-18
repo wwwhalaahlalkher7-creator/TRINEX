@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
@@ -95,7 +97,7 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   Future<void> _syncDrive() async {
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
       title: const Text('بدء مزامنة الملفات؟'),
-      content: const Text('ستُحدّث المواد الموجودة وتُعطّل السجلات التي لم تعد موجودة في الفهرس. لن تُحذف الملفات من Drive بواسطة عملية المزامنة المعتادة.'),
+      content: const Text('ستضيف المزامنة الشيتات الموجودة في Drive وغير المسجلة في D1 فقط. لن تعدّل أو تحذف السجلات المسجلة.'),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('بدء المزامنة'))],
     ));
     if (confirmed != true || !mounted) { return; }
@@ -236,10 +238,69 @@ class _AcademicPageState extends State<AcademicPage> with SingleTickerProviderSt
   }
 
   Future<void> _addSheet(Map<String, dynamic> subject) async {
-    final result = await showDialog<Map<String, dynamic>>(context: context, builder: (_) => _AcademicEditor(resource: 'materials', initial: {'subject_id': subject['id']}, subjects: _subjects, departments: _departments, semesters: _semesters));
-    if (result == null || !mounted) { return; }
-    try { await widget.api.post('/admin/materials', body: result); _message('تمت إضافة الشيت.'); await _loadAll(); }
-    catch (e) { _message('تعذرت إضافة الشيت: $e', error: true); }
+    final titleController = TextEditingController();
+    PlatformFile? selectedFile;
+    bool uploading = false;
+    String? localError;
+    final result = await showDialog<bool>(context: context, barrierDismissible: false, builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, setDialogState) => AlertDialog(
+        title: const Text('إضافة شيت PDF'),
+        content: SizedBox(width: 480, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('المادة: ${subject['name_ar'] ?? subject['id']}'),
+          const SizedBox(height: 14),
+          TextField(controller: titleController, enabled: !uploading, decoration: const InputDecoration(labelText: 'عنوان الشيت', hintText: 'مثال: المحاضرة الأولى')),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: uploading ? null : () async {
+              try {
+                final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['pdf'], withData: true, allowMultiple: false);
+                if (picked == null || picked.files.isEmpty) return;
+                final file = picked.files.single;
+                if (file.bytes == null) { setDialogState(() => localError = 'تعذر قراءة الملف من الجهاز. حاول اختيار الملف مرة أخرى.'); return; }
+                if (file.size > 8 * 1024 * 1024) { setDialogState(() => localError = 'الحد الأقصى لحجم PDF هو 8 ميجابايت.'); return; }
+                setDialogState(() { selectedFile = file; localError = null; });
+              } catch (e) { setDialogState(() => localError = 'تعذر اختيار الملف: $e'); }
+            },
+            icon: const Icon(Icons.upload_file),
+            label: Text(selectedFile == null ? 'اختيار ملف PDF من الجهاز' : 'تغيير الملف'),
+          ),
+          if (selectedFile != null) Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [
+            const Icon(Icons.picture_as_pdf_outlined), const SizedBox(width: 8),
+            Expanded(child: Text(selectedFile!.name, maxLines: 2, overflow: TextOverflow.ellipsis)),
+            Text('${(selectedFile!.size / 1024 / 1024).toStringAsFixed(1)} MB'),
+          ])),
+          if (localError != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(localError!, style: TextStyle(color: Theme.of(dialogContext).colorScheme.error))),
+          if (uploading) const Padding(padding: EdgeInsets.only(top: 16), child: LinearProgressIndicator()),
+        ]))),
+        actions: [
+          TextButton(onPressed: uploading ? null : () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton.icon(
+            onPressed: uploading ? null : () async {
+              if (titleController.text.trim().isEmpty || selectedFile?.bytes == null) {
+                setDialogState(() => localError = 'أدخل عنوان الشيت واختر ملف PDF.');
+                return;
+              }
+              setDialogState(() { uploading = true; localError = null; });
+              try {
+                await widget.api.post('/admin/materials/upload', body: {
+                  'subjectId': subject['id'],
+                  'title': titleController.text.trim(),
+                  'fileName': selectedFile!.name,
+                  'base64': base64Encode(selectedFile!.bytes!),
+                });
+                if (dialogContext.mounted) Navigator.pop(dialogContext, true);
+              } catch (e) {
+                setDialogState(() { uploading = false; localError = 'تعذر رفع الشيت: $e'; });
+              }
+            },
+            icon: const Icon(Icons.cloud_upload_outlined),
+            label: Text(uploading ? 'جارٍ الرفع…' : 'رفع وإضافة الشيت'),
+          ),
+        ],
+      ),
+    ));
+    titleController.dispose();
+    if (result == true && mounted) { _message('تم رفع الشيت إلى Drive وتسجيله في D1.'); await _loadAll(); }
   }
 
   Future<void> _editMaterial(Map<String, dynamic> sheet) async {

@@ -20,7 +20,7 @@ class ApiService {
     defaultValue:
         'https://leo-association-api.www-halaahlalkher7.workers.dev/api/v1',
   );
-  static const _timeout = Duration(seconds: 25);
+  static const _timeout = Duration(seconds: 90);
   Future<AdminSession>? _refreshFuture;
 
   Uri _uri(String path) {
