@@ -8,6 +8,23 @@ import '../../admin_permissions.dart';
 
 enum _ContentKind { news, events, achievements, announcements }
 
+// Keep these values aligned with the category maps in website/news.html and
+// website/Injazat.html. The values (not just their labels) are sent to the API.
+const Map<String, String> _newsCategoryOptions = {
+  'statement': 'بيان رسمي',
+  'coverage': 'تغطية إعلامية',
+  'academic': 'نشاط أكاديمي',
+  'إعلان هام': 'إعلان هام',
+};
+const Map<String, String> _achievementCategoryOptions = {
+  'أكاديمي': 'إنجاز أكاديمي',
+  'رياضي': 'إنجاز رياضي',
+  'اجتماعي': 'نشاط مجتمعي',
+  'تكريم': 'تكريم',
+  'قيادة': 'إنجاز قيادي',
+  'تنظيمي': 'إنجاز تنظيمي',
+};
+
 extension on _ContentKind {
   String get endpoint => switch (this) {
         _ContentKind.news => 'news',
@@ -399,7 +416,20 @@ class _ContentEditorState extends State<_ContentEditor> {
     _title = TextEditingController(text: item['title']?.toString() ?? '');
     _imageUrl = TextEditingController(text: item['image_url']?.toString() ?? '');
     _body = TextEditingController(text: (item['body'] ?? item['description'] ?? item['intro'] ?? '').toString());
-    _category = TextEditingController(text: item['category']?.toString() ?? '');
+    final savedCategory = (widget.kind == _ContentKind.achievements
+        ? item['badge']
+        : item['category'])?.toString() ?? '';
+    final knownCategories = widget.kind == _ContentKind.news
+        ? _newsCategoryOptions.keys.toSet()
+        : _achievementCategoryOptions.keys.toSet();
+    // Events still use their existing free-text category. For news and
+    // achievements, unknown legacy values remain unselected so the admin
+    // explicitly chooses an approved value rather than silently rewriting it.
+    _category = TextEditingController(
+      text: widget.kind == _ContentKind.events || knownCategories.contains(savedCategory)
+          ? savedCategory
+          : '',
+    );
     _publisher = TextEditingController(text: item['publisher']?.toString() ?? '');
     _location = TextEditingController(text: item['location']?.toString() ?? '');
     _type = TextEditingController(text: item['type']?.toString() ?? 'general');
@@ -465,14 +495,36 @@ class _ContentEditorState extends State<_ContentEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.initial == null ? 'إضافة ${widget.kind.label}' : 'تعديل ${widget.kind.label}'),
+    title: Text(widget.kind == _ContentKind.achievements
+        ? (widget.initial == null ? 'نشر إنجاز جديد' : 'تعديل الإنجاز')
+        : (widget.initial == null ? 'إضافة ${widget.kind.label}' : 'تعديل ${widget.kind.label}')),
     content: SizedBox(width: 520, child: SingleChildScrollView(child: Form(key: _formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
       TextFormField(controller: _title, decoration: const InputDecoration(labelText: 'العنوان'), validator: (v) => v == null || v.trim().isEmpty ? 'العنوان مطلوب' : null),
       const SizedBox(height: 12),
       TextFormField(controller: _body, minLines: 3, maxLines: 7, decoration: InputDecoration(labelText: widget.kind == _ContentKind.achievements ? 'الوصف' : 'المحتوى'), validator: (v) => v == null || v.trim().isEmpty ? 'المحتوى مطلوب' : null),
       if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
         const SizedBox(height: 12),
-        TextFormField(controller: _category, decoration: InputDecoration(labelText: widget.kind == _ContentKind.achievements ? 'شارة الإنجاز (اختياري)' : 'التصنيف (اختياري)')),
+        if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.achievements)
+          DropdownButtonFormField<String>(
+            value: _category.text.isNotEmpty ? _category.text : null,
+            decoration: InputDecoration(
+              labelText: widget.kind == _ContentKind.achievements ? 'تصنيف الإنجاز' : 'تصنيف الخبر',
+              helperText: 'اختر تصنيفًا من القائمة المعتمدة في الموقع',
+            ),
+            items: (widget.kind == _ContentKind.achievements
+                    ? _achievementCategoryOptions
+                    : _newsCategoryOptions)
+                .entries
+                .map((entry) => DropdownMenuItem<String>(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    ))
+                .toList(),
+            validator: (value) => value == null || value.isEmpty ? 'يرجى اختيار التصنيف' : null,
+            onChanged: (value) => setState(() => _category.text = value ?? ''),
+          )
+        else
+          TextFormField(controller: _category, decoration: const InputDecoration(labelText: 'تصنيف النشاط (اختياري)')),
         const SizedBox(height: 12),
         TextFormField(controller: _publisher, decoration: const InputDecoration(labelText: 'اسم الناشر (اختياري)')),
       ],
@@ -498,6 +550,14 @@ class _ContentEditorState extends State<_ContentEditor> {
         if (_imageError != null) Align(alignment: AlignmentDirectional.centerStart, child: Text(_imageError!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
       ],
     ])))),
-    actions: [TextButton(onPressed: (_busy || _uploadingImage) ? null : () => Navigator.pop(context), child: const Text('إلغاء')), FilledButton(onPressed: (_busy || _uploadingImage) ? null : _save, child: const Text('حفظ'))],
+    actions: [
+      TextButton(onPressed: (_busy || _uploadingImage) ? null : () => Navigator.pop(context), child: const Text('إلغاء')),
+      FilledButton(
+        onPressed: (_busy || _uploadingImage) ? null : _save,
+        child: Text(widget.kind == _ContentKind.achievements
+            ? (widget.initial == null ? 'نشر الإنجاز' : 'حفظ التعديلات')
+            : 'حفظ'),
+      ),
+    ],
   );
 }
