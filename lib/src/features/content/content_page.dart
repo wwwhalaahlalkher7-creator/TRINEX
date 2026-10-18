@@ -19,10 +19,10 @@ const Map<String, String> _newsCategoryOptions = {
 const Map<String, String> _achievementCategoryOptions = {
   'أكاديمي': 'إنجاز أكاديمي',
   'رياضي': 'إنجاز رياضي',
-  'اجتماعي': 'نشاط مجتمعي',
   'تكريم': 'تكريم',
   'قيادة': 'إنجاز قيادي',
-  'تنظيمي': 'إنجاز تنظيمي',
+  'تاريخي': 'إنجاز تاريخي',
+  'مبادرة': 'مبادرة',
 };
 
 extension on _ContentKind {
@@ -441,7 +441,7 @@ class _ContentEditorState extends State<_ContentEditor> {
     for (final controller in [_publishAt, _eventAt, _endAt, _achievedAt, _expiresAt]) { final formatted = _displayDate(controller.text); if (formatted.isNotEmpty) { controller.text = formatted; } }
     _targetDepartment = TextEditingController(text: item['target_department_id']?.toString() ?? '');
     _targetSemester = TextEditingController(text: item['target_semester_id']?.toString() ?? '');
-    _highlightsTitle = TextEditingController(text: item['highlights_title']?.toString() ?? 'أبرز المحاور');
+    _highlightsTitle = TextEditingController(text: item['highlights_title']?.toString() ?? '');
     final rawHighlights = item['highlights'];
     var highlightsText = rawHighlights?.toString() ?? '';
     if (rawHighlights is List) {
@@ -483,7 +483,7 @@ class _ContentEditorState extends State<_ContentEditor> {
         payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'location': _location.text.trim(), 'event_at': _isoDate(_eventAt.text), 'end_at': _isoDate(_endAt.text)});
         break;
       case _ContentKind.achievements:
-        payload.addAll({'description': body, 'intro': body, 'highlights_title': _highlightsTitle.text.trim(), 'highlights': jsonEncode(_highlights.text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList()), 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _imageUrl.text.trim(), 'achieved_at': _isoDate(_achievedAt.text)});
+        payload.addAll({'description': body, 'intro': body, 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _imageUrl.text.trim(), 'achieved_at': _isoDate(_achievedAt.text)});
         break;
       case _ContentKind.announcements:
         payload.addAll({'body': body, 'type': _type.text.trim().isEmpty ? 'general' : _type.text.trim(), 'target_department_id': _targetDepartment.text.trim().isEmpty ? null : _targetDepartment.text.trim(), 'target_semester_id': _targetSemester.text.trim().isEmpty ? null : _targetSemester.text.trim(), 'publish_at': _publishAt.text.trim().isEmpty ? null : _publishAt.text.trim(), 'expires_at': _expiresAt.text.trim().isEmpty ? null : _expiresAt.text.trim()});
@@ -509,7 +509,6 @@ class _ContentEditorState extends State<_ContentEditor> {
             value: _category.text.isNotEmpty ? _category.text : null,
             decoration: InputDecoration(
               labelText: widget.kind == _ContentKind.achievements ? 'تصنيف الإنجاز' : 'تصنيف الخبر',
-              helperText: 'اختر تصنيفًا من القائمة المعتمدة في الموقع',
             ),
             items: (widget.kind == _ContentKind.achievements
                     ? _achievementCategoryOptions
@@ -538,8 +537,6 @@ class _ContentEditorState extends State<_ContentEditor> {
       ],
       if (widget.kind == _ContentKind.achievements) ...[
         const SizedBox(height: 12), TextFormField(controller: _achievedAt, readOnly: true, onTap: () => _pickDate(_achievedAt), decoration: const InputDecoration(labelText: 'تاريخ الإنجاز (اختياري)', suffixIcon: Icon(Icons.calendar_month))),
-        const SizedBox(height: 12), TextFormField(controller: _highlightsTitle, decoration: const InputDecoration(labelText: 'عنوان أبرز المحاور')),
-        const SizedBox(height: 12), TextFormField(controller: _highlights, minLines: 2, maxLines: 6, decoration: const InputDecoration(labelText: 'أبرز المحاور (كل محور في سطر)')),
       ],
       if (widget.kind == _ContentKind.news || widget.kind == _ContentKind.events || widget.kind == _ContentKind.achievements) ...[
         const Divider(height: 28),
