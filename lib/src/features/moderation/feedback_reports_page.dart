@@ -86,14 +86,18 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
   }
 
   String _title(Map<String, dynamic> item) {
-    if (_source(item) == 'chat') return 'بلاغ: ${item['reason'] ?? 'سبب غير محدد'}';
+    if (_source(item) == 'chat') {
+      return 'بلاغ: ${item['reason'] ?? 'سبب غير محدد'}';
+    }
     return item['title']?.toString().trim().isNotEmpty == true
         ? item['title'].toString()
         : 'بدون عنوان';
   }
 
   String _message(Map<String, dynamic> item) {
-    if (_source(item) == 'chat') return item['messageBody']?.toString() ?? 'محتوى الرسالة غير متاح';
+    if (_source(item) == 'chat') {
+      return item['messageBody']?.toString() ?? 'محتوى الرسالة غير متاح';
+    }
     return item['details']?.toString() ?? '';
   }
 
@@ -244,7 +248,7 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
                   Text('تغيير الحالة', style: Theme.of(context).textTheme.labelLarge),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: selectedStatus,
+                    initialValue: selectedStatus,
                     isExpanded: true,
                     items: (source == 'chat'
                             ? const [
@@ -261,13 +265,15 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
                                 DropdownMenuItem(value: 'archived', child: Text('أرشفة البلاغ')),
                               ]),
                     onChanged: (value) {
-                      if (value != null) setDialogState(() => selectedStatus = value);
+                      if (value != null) {
+                        setDialogState(() => selectedStatus = value);
+                      }
                     },
                   ),
                   if (source == 'chat' && selectedStatus == 'reviewed') ...[
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: messageStatus,
+                      initialValue: messageStatus,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'الإجراء على الرسالة'),
                       items: const [
@@ -275,7 +281,9 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
                         DropdownMenuItem(value: 'hidden', child: Text('إخفاء الرسالة')),
                       ],
                       onChanged: (value) {
-                        if (value != null) setDialogState(() => messageStatus = value);
+                        if (value != null) {
+                          setDialogState(() => messageStatus = value);
+                        }
                       },
                     ),
                   ],
@@ -522,7 +530,7 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
                   SizedBox(
                     width: width < 600 ? double.infinity : 190,
                     child: DropdownButtonFormField<String>(
-                      value: _type,
+                      initialValue: _type,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'نوع السجل'),
                       items: const [
@@ -531,7 +539,11 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
                         DropdownMenuItem(value: 'report', child: Text('البلاغات العامة')),
                         DropdownMenuItem(value: 'chat', child: Text('بلاغات الدردشة')),
                       ],
-                      onChanged: (value) { if (value != null) setState(() => _type = value); },
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _type = value);
+                        }
+                      },
                     ),
                   ),
                 ]),
@@ -561,12 +573,6 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
       ),
     );
   }
-
-  Widget _viewFilter(String view, String label, int count) => FilterChip(
-    selected: _view == view,
-    label: Text('$label ($count)'),
-    onSelected: (_) => setState(() => _view = view),
-  );
 
 
 }
