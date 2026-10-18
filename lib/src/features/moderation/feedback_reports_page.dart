@@ -471,8 +471,6 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('المقترحات والبلاغات', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              const Text('صندوق موحّد لمقترحات الطلاب والبلاغات العامة وبلاغات الدردشة.'),
             ])),
             IconButton(tooltip: 'تحديث القائمة', onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
           ]),
@@ -536,12 +534,6 @@ class _FeedbackReportsPageState extends State<FeedbackReportsPage> {
                       onChanged: (value) { if (value != null) setState(() => _type = value); },
                     ),
                   ),
-                ]),
-                const SizedBox(height: 14),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  _viewFilter('current', 'الحالية', _countWhere((item) => _status(item) == 'open' || _status(item) == 'in_review')),
-                  _viewFilter('solved', 'تم الحل', _countWhere(_isSolved)),
-                  _viewFilter('archived', 'الأرشيف', _countWhere(_isArchived)),
                 ]),
                 if (_loading && _allItems.isEmpty)
                   const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator())),
