@@ -26,7 +26,7 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
       - name: Format Dart sources
-        run: dart format lib
+        run: dart format lib test
       - name: Static analysis
         run: flutter analyze --no-fatal-infos
       - name: Unit and widget tests

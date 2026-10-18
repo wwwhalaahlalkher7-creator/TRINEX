@@ -18,7 +18,7 @@ extension on _ContentKind {
       };
   String get label => switch (this) {
         _ContentKind.news => 'الأخبار',
-        _ContentKind.events => 'الفعاليات',
+        _ContentKind.events => 'الأنشطة',
         _ContentKind.achievements => 'الإنجازات',
         _ContentKind.announcements => 'الإعلانات',
       };
@@ -46,6 +46,7 @@ class _ContentPageState extends State<ContentPage> {
   List<Map<String, dynamic>> _items = [];
   bool _loading = false;
   String? _error;
+  int _loadRevision = 0;
 
   @override
   void initState() {
@@ -59,20 +60,46 @@ class _ContentPageState extends State<ContentPage> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load() => _loadKind(_kind);
+
+  Future<void> _loadKind(_ContentKind kind) async {
+    // Ignore late responses from a previously selected tab. Otherwise a slow
+    // request for News can overwrite the list after the user has selected Events.
+    final revision = ++_loadRevision;
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await widget.api.get('/admin/${_kind.endpoint}?limit=100');
+      final response = await widget.api.get('/admin/${kind.endpoint}?limit=100');
       final raw = response['data'];
       final rows = raw is List
           ? raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
           : <Map<String, dynamic>>[];
-      if (mounted) { setState(() => _items = rows); }
+      if (mounted && revision == _loadRevision && _kind == kind) {
+        setState(() => _items = rows);
+      }
     } catch (error) {
-      if (mounted) { setState(() => _error = error.toString()); }
+      if (mounted && revision == _loadRevision && _kind == kind) {
+        setState(() => _error = error.toString());
+      }
     } finally {
-      if (mounted) { setState(() => _loading = false); }
+      if (mounted && revision == _loadRevision) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  void _selectKind(_ContentKind kind) {
+    if (_kind == kind) {
+      // Tapping the active section is also a predictable way to retry/refresh it.
+      _loadKind(kind);
+      return;
+    }
+    setState(() {
+      _kind = kind;
+      _items = [];
+      _query = '';
+      _error = null;
+    });
+    _loadKind(kind);
   }
 
   List<Map<String, dynamic>> get _filtered {
@@ -171,7 +198,8 @@ class _ContentPageState extends State<ContentPage> {
           if (canEdit) FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('إضافة محتوى')),
         ]),
         const SizedBox(height: 20),
-        // Fixed, responsive selector: all three content types remain visible without horizontal scrolling.
+        // Use real Material buttons rather than a custom tap surface, so the
+        // selected section is accessible and reliably interactive on touch devices.
         LayoutBuilder(builder: (context, constraints) {
           final compact = constraints.maxWidth < 420;
           return Container(
@@ -182,39 +210,53 @@ class _ContentPageState extends State<ContentPage> {
               border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final kind in _kinds)
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Material(
-                        color: _kind == kind ? theme.colorScheme.primaryContainer : Colors.transparent,
-                        borderRadius: BorderRadius.circular(13),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(13),
-                          onTap: () {
-                            if (_kind == kind) return;
-                            setState(() { _kind = kind; _items = []; _query = ''; });
-                            _load();
-                          },
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 10, vertical: 11),
-                            child: compact
-                                ? Column(mainAxisSize: MainAxisSize.min, children: [
-                                    Icon(kind.icon, size: 21, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant),
-                                    const SizedBox(height: 5),
-                                    Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                                      style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant)),
-                                  ])
-                                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                    Icon(kind.icon, size: 20, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant),
-                                    const SizedBox(width: 8),
-                                    Flexible(child: Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700, color: _kind == kind ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant))),
-                                  ]),
-                          ),
-                        ),
+                      child: SizedBox(
+                        height: compact ? 68 : 48,
+                        child: _kind == kind
+                            ? FilledButton.tonal(
+                                onPressed: () => _selectKind(kind),
+                                style: FilledButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 8, vertical: 6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                                ),
+                                child: compact
+                                    ? Column(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+                                        Icon(kind.icon, size: 20),
+                                        const SizedBox(height: 4),
+                                        Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                      ])
+                                    : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                        Icon(kind.icon, size: 19),
+                                        const SizedBox(width: 6),
+                                        Flexible(child: Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                      ]),
+                              )
+                            : OutlinedButton(
+                                onPressed: () => _selectKind(kind),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 8, vertical: 6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                                  side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.8)),
+                                ),
+                                child: compact
+                                    ? Column(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+                                        Icon(kind.icon, size: 20),
+                                        const SizedBox(height: 4),
+                                        Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                      ])
+                                    : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                        Icon(kind.icon, size: 19),
+                                        const SizedBox(width: 6),
+                                        Flexible(child: Text(kind.label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                      ]),
+                              ),
                       ),
                     ),
                   ),
