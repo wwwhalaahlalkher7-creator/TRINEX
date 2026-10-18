@@ -463,7 +463,9 @@ class _DashboardPageState extends State<DashboardPage> {
             const _EmptyQuickActions()
           else
             LayoutBuilder(builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1100 ? 3 : constraints.maxWidth >= 480 ? 2 : 1;
+              // Keep the overview quick-action cards in two columns on phones.
+              // Wider layouts retain the existing 2/3-column behavior.
+              final columns = constraints.maxWidth >= 1100 ? 3 : 2;
               final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
               return Wrap(
                 spacing: 12,
@@ -552,28 +554,46 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
+    return LayoutBuilder(builder: (context, constraints) {
+      final compact = constraints.maxWidth < 220;
+      final icon = Container(
+        padding: EdgeInsets.all(compact ? 9 : 11),
+        decoration: BoxDecoration(color: const Color(0xFFEFF3FF), borderRadius: BorderRadius.circular(12)),
+        child: Icon(action.icon, color: TrinexColors.brand, size: compact ? 21 : 24),
+      );
+      final labels = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(action.title, style: const TextStyle(fontWeight: FontWeight.w700, color: TrinexColors.ink), maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Text(action.subtitle, style: Theme.of(context).textTheme.bodySmall, maxLines: compact ? 2 : 3, overflow: TextOverflow.ellipsis),
+        ],
+      );
+      return Material(
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(17),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: TrinexColors.border)),
-          child: Row(children: [
-            Container(padding: const EdgeInsets.all(11), decoration: BoxDecoration(color: const Color(0xFFEFF3FF), borderRadius: BorderRadius.circular(12)), child: Icon(action.icon, color: TrinexColors.brand)),
-            const SizedBox(width: 13),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(action.title, style: const TextStyle(fontWeight: FontWeight.w700, color: TrinexColors.ink)),
-              const SizedBox(height: 4),
-              Text(action.subtitle, style: Theme.of(context).textTheme.bodySmall),
-            ])),
-            const Icon(Icons.arrow_back_ios_new_rounded, size: 15, color: TrinexColors.muted),
-          ]),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: EdgeInsets.all(compact ? 12 : 17),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: TrinexColors.border)),
+            child: compact
+                ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [icon, const Spacer(), const Icon(Icons.arrow_back_ios_new_rounded, size: 13, color: TrinexColors.muted)]),
+                    const SizedBox(height: 10),
+                    labels,
+                  ])
+                : Row(children: [
+                    icon,
+                    const SizedBox(width: 13),
+                    Expanded(child: labels),
+                    const Icon(Icons.arrow_back_ios_new_rounded, size: 15, color: TrinexColors.muted),
+                  ]),
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
