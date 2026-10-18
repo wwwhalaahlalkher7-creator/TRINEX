@@ -31,6 +31,7 @@ void main() {
       expect(AdminPermissions.canSee('moderator', AdminSection.overview), isTrue);
       expect(AdminPermissions.canSee('moderator', AdminSection.account), isTrue);
       expect(AdminPermissions.canSee('moderator', AdminSection.chatReports), isFalse);
+      expect(AdminPermissions.canSee('moderator', AdminSection.feedbackReports), isFalse);
       expect(AdminPermissions.canSee('moderator', AdminSection.students), isFalse);
       expect(AdminPermissions.canSee('moderator', AdminSection.staff), isFalse);
     });
