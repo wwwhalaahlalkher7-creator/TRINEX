@@ -18,7 +18,7 @@ This document maps the legacy `Union-App/website/admin` capabilities to the nati
 | Schedules | Academic workspace | `/admin/schedule` | CRUD present; backend creates/refreshes linked notification drafts for meaningful schedule changes |
 | Google Drive sync | Academic workspace | `/admin/drive/sync`, `/admin/drive/sync-status` | Connected; action requires confirmation |
 | Comments / replies | Moderation | `/admin/moderation/comments`, `/admin/moderation/replies` | Status moderation and reply deletion present |
-| Public chat reports | Chat reports | `/admin/moderation/chat-reports` | Added native list, status filters, resolve/dismiss, and message hide/keep actions |
+| Student suggestions/general reports and public chat reports | Unified Suggestions & Reports inbox (chat is a dedicated record type) | `/admin/moderation/feedback`, `/admin/moderation/chat-reports` | One searchable/filterable page; each source retains its own status and actions, including chat message hide/keep |
 | Notifications | Notifications | `/admin/notifications`, `/admin/notifications/send`, `/admin/announcements/:id` | Added draft editing and explicit approve/publish step; sending remains a separate confirmed action |
 | Media upload | Content editor and Media | `POST /admin/media` | Added upload from content editor; JPEG/PNG/WebP, 3 MB limit, server validates and returns URL |
 | Audit log and authentication events | Security | `/admin/audit-logs`, `/admin/security/auth-events` | Read-only; sensitive fields redacted in detail view |
@@ -48,4 +48,4 @@ Publishing does not claim that push notifications were delivered; actual device 
 
 Source-level route and feature wiring was reviewed, but this editing environment does not have Flutter/Dart installed. Therefore `dart format`, `flutter analyze`, `flutter test`, platform builds, and live API integration tests were not run here. The package must not be considered release-verified until those checks pass in CI and the changed flows are tested with authorized test accounts against the target API.
 
-The source code's presence is not proof that production secrets, Cloudflare routes, D1 migrations, R2 media storage, or push delivery are configured. In particular, verify the deployed backend has migrations through `0038_content_notification_drafts.sql` and that `/admin/security/eino-monitor` and `/admin/moderation/chat-reports` are deployed before relying on those screens in production.
+The source code's presence is not proof that production secrets, Cloudflare routes, D1 migrations, R2 media storage, or push delivery are configured. In particular, verify the deployed backend has migrations through `0038_content_notification_drafts.sql` and that `/admin/security/eino-monitor`, `/admin/moderation/feedback`, and `/admin/moderation/chat-reports` are deployed before relying on those screens in production.

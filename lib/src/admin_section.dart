@@ -9,7 +9,6 @@ enum AdminSection {
   materials('المواد الدراسية', Icons.menu_book_outlined),
   schedule('الجداول', Icons.calendar_month_outlined),
   feedbackReports('المقترحات والبلاغات', Icons.feedback_outlined),
-  chatReports('بلاغات الدردشة', Icons.flag_outlined),
   notifications('الإشعارات', Icons.notifications_active_outlined),
   security('الأمان وسجل التدقيق', Icons.shield_outlined),
   eino('مراقبة إينو', Icons.monitor_heart_outlined),
