@@ -69,7 +69,7 @@ void main() {
     expect(api.getCalls.last, '/admin/activities?limit=100');
   });
 
-  testWidgets('notifications screen can create a draft announcement',
+  testWidgets('notifications screen publishes immediately without exposing a type selector',
       (tester) async {
     final api = _FakeApi();
     await tester.pumpWidget(MaterialApp(
@@ -87,6 +87,59 @@ void main() {
     expect(api.postCalls, hasLength(1));
     expect(api.postCalls.single.key, '/admin/announcements');
     expect(api.postCalls.single.value?['title'], 'اختبار إشعار');
-    expect(api.postCalls.single.value?['status'], 'draft');
+    expect(api.postCalls.single.value?['status'], 'published');
+    expect(api.postCalls.single.value?['type'], 'general');
+    expect(find.textContaining('النوع (مثال:'), findsNothing);
+    expect(find.text('المسودات'), findsNothing);
+    expect(find.text('المستهدفون'), findsNothing);
+    expect(find.text('القراءات'), findsNothing);
+  });
+
+  testWidgets('future notification dates are shown in readable local date-time format',
+      (tester) async {
+    final api = _FakeApi()
+      ..notificationRows = [
+        {
+          'id': 'scheduled-1',
+          'title': 'إشعار مجدول',
+          'body': 'سيظهر لاحقًا',
+          'type': 'general',
+          'status': 'published',
+          'publish_at': '2099-10-18T17:45:00',
+          'expires_at': '2099-10-20T18:15:00',
+        },
+      ];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: NotificationsPage(api: api)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('مجدول'), findsOneWidget);
+    expect(find.text('18/10/2099  17:45'), findsOneWidget);
+    expect(find.text('20/10/2099  18:15'), findsOneWidget);
+    expect(find.textContaining('النوع (مثال:'), findsNothing);
+  });
+
+  testWidgets('only schedule/material-generated drafts expose approval action',
+      (tester) async {
+    final api = _FakeApi()
+      ..notificationRows = [
+        {
+          'id': 'schedule-draft',
+          'title': 'تحديث جدول',
+          'body': 'تم تعديل جدول دراسي',
+          'type': 'schedule',
+          'content_type': 'schedule',
+          'status': 'draft',
+        },
+      ];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: NotificationsPage(api: api)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('مرتبط بتحديث أكاديمي'), findsOneWidget);
+    expect(find.text('اعتماد ونشر'), findsOneWidget);
   });
 }
+

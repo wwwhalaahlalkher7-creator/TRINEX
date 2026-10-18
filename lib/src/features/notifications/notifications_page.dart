@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
 
+const Set<String> _academicNotificationContentTypes = {'schedule', 'material'};
+
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key, required this.api});
   final ApiService api;
@@ -77,18 +79,29 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   DateTime? _date(dynamic value) =>
-      value == null ? null : DateTime.tryParse(value.toString());
+      value == null ? null : DateTime.tryParse(value.toString())?.toLocal();
 
   bool _isScheduled(Map<String, dynamic> item) {
     final publishAt = _date(item['publish_at']);
-    return item['status'] == 'published' &&
+    return (item['status'] == 'scheduled' || item['status'] == 'published') &&
         publishAt != null && publishAt.isAfter(DateTime.now());
   }
 
+  bool _isExpired(Map<String, dynamic> item) {
+    final expiresAt = _date(item['expires_at']);
+    return expiresAt != null && !expiresAt.isAfter(DateTime.now());
+  }
+
+  bool _isAcademicDraft(Map<String, dynamic> item) =>
+      item['status'] == 'draft' &&
+      _academicNotificationContentTypes.contains(item['content_type']?.toString());
+
   String _statusLabel(Map<String, dynamic> item) {
     final status = item['status']?.toString().trim() ?? '';
-    if (status == 'draft') return 'مسودة';
-    if (_isScheduled(item) || status == 'scheduled') return 'مجدول';
+    if (_isExpired(item)) return 'منتهي';
+    if (_isScheduled(item)) return 'مجدول';
+    if (status == 'scheduled') return 'موعد النشر حان';
+    if (status == 'draft') return 'مرتبط بتحديث أكاديمي';
     if (status == 'published') return 'منشور';
     if (status == 'queued') return 'قيد التجهيز';
     if (status == 'sent') return 'تم الإرسال';
@@ -103,9 +116,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return _items.where((item) {
       final status = item['status']?.toString() ?? '';
       final matchesStatus = switch (_statusFilter) {
-        'draft' => status == 'draft',
         'published' => status == 'published' || status == 'scheduled',
-        'other' => status != 'draft' && status != 'published' && status != 'scheduled',
+        // Drafts are reserved for generated schedule/material announcements.
+        'other' => _isAcademicDraft(item) ||
+            (status != 'published' && status != 'scheduled' && status != 'draft'),
         _ => true,
       };
       final searchable = '${item['title'] ?? ''} ${item['body'] ?? ''} ${item['type'] ?? ''} ${item['target_department_id'] ?? ''} ${item['target_semester_id'] ?? ''}'
@@ -114,17 +128,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }).toList();
   }
 
-  int _countStatus(String status) =>
-      _items.where((item) => item['status'] == status).length;
-
-  int _countAllTargets() => _items.fold<int>(
-      0, (sum, item) => sum + (_asInt(item['targets'])));
-
-  int _countAllReads() => _items.fold<int>(
-      0, (sum, item) => sum + (_asInt(item['reads'])));
-
-  int _asInt(dynamic value) =>
-      value is int ? value : int.tryParse(value?.toString() ?? '') ?? 0;
+  int _countPublishedOrScheduled() => _items.where((item) =>
+      (item['status'] == 'published' || item['status'] == 'scheduled') &&
+      !_isExpired(item)).length;
 
   String _audienceLabel(List<Map<String, dynamic>> rows, String id) {
     for (final row in rows) {
@@ -154,61 +160,22 @@ class _NotificationsPageState extends State<NotificationsPage> {
         await widget.api.patch('/admin/announcements/$id', body: result);
       }
       if (!mounted) return;
+      final publishAt = _date(result['publish_at']);
+      final scheduledForFuture = publishAt != null && publishAt.isAfter(DateTime.now());
+      final remainsAcademicDraft = item?['status'] == 'draft' &&
+          _academicNotificationContentTypes.contains(item?['content_type']?.toString());
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(id == null || id.isEmpty
-            ? 'تم إنشاء مسودة الإشعار.'
-            : 'تم حفظ تعديلات الإشعار.'),
+            ? (scheduledForFuture ? 'تمت جدولة الإشعار لموعده المحدد.' : 'تم نشر الإشعار.')
+            : remainsAcademicDraft
+                ? 'تم حفظ مسودة التحديث الأكاديمي؛ اعتمدها عند جاهزيتها.'
+                : (scheduledForFuture ? 'تم تحديث موعد الإشعار المجدول.' : 'تم حفظ تعديلات الإشعار.')),
       ));
       await _load();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تعذر حفظ الإشعار: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _changeStatus(
-    Map<String, dynamic> item, {
-    required String nextStatus,
-    required String title,
-    required String message,
-    required String successMessage,
-  }) async {
-    final id = item['id']?.toString() ?? '';
-    if (id.isEmpty) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('تأكيد'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    try {
-      await widget.api.patch('/admin/announcements/$id', body: {
-        'status': nextStatus,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage)),
-      );
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر تغيير حالة الإشعار: $e')),
         );
       }
     }
@@ -258,7 +225,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _send(Map<String, dynamic> item) async {
     final id = item['id']?.toString() ?? '';
-    if (id.isEmpty || item['status'] != 'published' || _isScheduled(item)) {
+    final status = item['status']?.toString();
+    if (id.isEmpty ||
+        (status != 'published' && status != 'scheduled') ||
+        _isScheduled(item) ||
+        _isExpired(item)) {
       return;
     }
     final confirmed = await showDialog<bool>(
@@ -283,6 +254,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (confirmed != true || !mounted) return;
     setState(() => _sending.add(id));
     try {
+      // A scheduled item whose date has arrived can be activated now. Future
+      // items remain blocked by _isScheduled and are never sent early here.
+      if (status == 'scheduled') {
+        await widget.api.patch('/admin/announcements/$id', body: {
+          'status': 'published',
+        });
+      }
       final result = await widget.api.post(
         '/admin/notifications/send',
         body: {'announcementId': id},
@@ -301,6 +279,58 @@ class _NotificationsPageState extends State<NotificationsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تعذر تجهيز الإشعار للإرسال: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending.remove(id));
+    }
+  }
+
+  Future<void> _approveAcademicDraft(Map<String, dynamic> item) async {
+    if (!_isAcademicDraft(item)) return;
+    final id = item['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    final publishAt = _date(item['publish_at']);
+    final expiresAt = _date(item['expires_at']);
+    final future = publishAt != null && publishAt.isAfter(DateTime.now());
+    final expired = expiresAt != null && !expiresAt.isAfter(DateTime.now());
+    if (expired) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('انتهت صلاحية هذا الإشعار؛ عدّل موعد الانتهاء أولًا.')),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(future ? 'اعتماد وجدولة الإشعار؟' : 'اعتماد ونشر الإشعار؟'),
+        content: Text(future
+            ? 'سيُعتمد الإشعار المرتبط بالتحديث الأكاديمي، وسيُرسل تلقائيًا عند حلول موعد النشر.'
+            : 'سيُعتمد الإشعار المرتبط بالتحديث الأكاديمي ويُجهّز لإرساله إلى الطلاب المستهدفين.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('اعتماد')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _sending.add(id));
+    try {
+      await widget.api.patch('/admin/announcements/$id', body: {'status': 'published'});
+      if (!future) {
+        // On-demand queueing complements the alarm-driven path. Both paths are
+        // idempotent, while future announcements are never queued early.
+        await widget.api.post('/admin/notifications/send', body: {'announcementId': id});
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(future ? 'تم اعتماد الإشعار وجدولته.' : 'تم اعتماد الإشعار وتجهيزه للإرسال.'),
+      ));
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر اعتماد الإشعار الأكاديمي: $e')),
         );
       }
     } finally {
@@ -340,7 +370,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('إدارة الإشعارات', style: theme.textTheme.headlineMedium?.copyWith(fontSize: 28, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 6),
-                Text('أنشئ الإشعارات، راجع محتواها وجمهورها، ثم اعتمدها وجهّزها للإرسال.', style: theme.textTheme.bodyMedium),
+                Text('أنشئ الإشعار لينشر مباشرة، أو حدّد موعدًا مستقبليًا لجدولته.', style: theme.textTheme.bodyMedium),
               ]),
               Wrap(spacing: 8, runSpacing: 8, children: [
                 OutlinedButton.icon(
@@ -357,23 +387,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
             ],
           ),
           const SizedBox(height: 14),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(14),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(Icons.info_outline),
-                SizedBox(width: 10),
-                Expanded(child: Text('النشر يجعل الإشعار جاهزًا للتجهيز، لكنه لا يعني أن إشعار Push وصل إلى أجهزة الطلاب. زر الإرسال يحدّث قائمة المستهدفين على الخادم، ويعتمد التسليم الفعلي على إعدادات خدمة الإشعارات.')),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: [
             _stat('كل الإشعارات', _items.length, Icons.notifications_outlined),
-            _stat('المسودات', _countStatus('draft'), Icons.edit_note_outlined),
-            _stat('المنشورة', _countStatus('published'), Icons.campaign_outlined),
-            _stat('المستهدفون', _countAllTargets(), Icons.groups_outlined),
-            _stat('القراءات', _countAllReads(), Icons.mark_email_read_outlined),
+            _stat('المنشورة / المجدولة', _countPublishedOrScheduled(), Icons.campaign_outlined),
           ]),
           const SizedBox(height: 14),
           TextField(
@@ -388,9 +404,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
             ChoiceChip(label: const Text('الكل'), selected: _statusFilter == 'all', onSelected: (_) => setState(() => _statusFilter = 'all')),
-            ChoiceChip(label: const Text('المسودات'), selected: _statusFilter == 'draft', onSelected: (_) => setState(() => _statusFilter = 'draft')),
             ChoiceChip(label: const Text('المنشورة / المجدولة'), selected: _statusFilter == 'published', onSelected: (_) => setState(() => _statusFilter = 'published')),
-            ChoiceChip(label: const Text('حالات أخرى'), selected: _statusFilter == 'other', onSelected: (_) => setState(() => _statusFilter = 'other')),
+            ChoiceChip(label: const Text('التحديثات الأكاديمية'), selected: _statusFilter == 'other', onSelected: (_) => setState(() => _statusFilter = 'other')),
           ]),
           const SizedBox(height: 10),
           if (_loading && _items.isEmpty)
@@ -426,10 +441,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final status = item['status']?.toString() ?? '';
     final busySending = _sending.contains(id);
     final busyDeleting = _deleting.contains(id);
-    final canEdit = status == 'draft' || status == 'published';
-    final canSend = status == 'published' && !_isScheduled(item) && !busySending;
-    final publishAt = item['publish_at']?.toString();
-    final expiresAt = item['expires_at']?.toString();
+    final academicDraft = _isAcademicDraft(item);
+    final canEdit = academicDraft || status == 'published' || status == 'scheduled';
+    final canSend = (status == 'published' || status == 'scheduled') &&
+        !_isScheduled(item) && !_isExpired(item) && !busySending;
+    final publishAt = item['publish_at'];
+    final expiresAt = item['expires_at'];
     final department = item['target_department_id']?.toString();
     final semester = item['target_semester_id']?.toString();
 
@@ -465,8 +482,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
             _detail(Icons.mark_email_read_outlined, 'القراءات: ${item['reads'] ?? 0}'),
             if (department != null && department.isNotEmpty) _detail(Icons.account_tree_outlined, 'القسم: ${_audienceLabel(_departments, department)}'),
             if (semester != null && semester.isNotEmpty) _detail(Icons.school_outlined, 'الفصل: ${_audienceLabel(_semesters, semester)}'),
-            if (publishAt != null && publishAt.isNotEmpty) _detail(Icons.schedule_outlined, 'النشر: $publishAt'),
-            if (expiresAt != null && expiresAt.isNotEmpty) _detail(Icons.event_busy_outlined, 'الانتهاء: $expiresAt'),
+            if (publishAt != null && publishAt.toString().isNotEmpty) _dateDetail(Icons.schedule_outlined, 'النشر', publishAt),
+            if (expiresAt != null && expiresAt.toString().isNotEmpty) _dateDetail(Icons.event_busy_outlined, 'الانتهاء', expiresAt),
           ]),
           const Divider(height: 24),
           Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 8, children: [
@@ -476,37 +493,31 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 icon: const Icon(Icons.edit_outlined),
                 label: const Text('تحرير المحتوى'),
               ),
-            if (status == 'draft')
-              FilledButton.tonalIcon(
-                onPressed: busyDeleting ? null : () => _changeStatus(
-                  item,
-                  nextStatus: 'published',
-                  title: 'اعتماد الإشعار ونشره؟',
-                  message: 'سيصبح الإشعار منشورًا أو مجدولًا حسب تاريخ النشر. هذا الإجراء لا يرسل إشعار Push تلقائيًا.',
-                  successMessage: 'تم اعتماد الإشعار ونشره.',
+            if (academicDraft)
+              FilledButton.icon(
+                onPressed: busySending || busyDeleting ? null : () => _approveAcademicDraft(item),
+                icon: busySending
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.publish_outlined),
+                label: Text(
+                  _date(item['publish_at'])?.isAfter(DateTime.now()) == true
+                      ? 'اعتماد وجدولة'
+                      : 'اعتماد ونشر',
                 ),
-                icon: const Icon(Icons.publish_outlined),
-                label: const Text('اعتماد ونشر'),
               ),
-            if (status == 'published')
-              OutlinedButton.icon(
-                onPressed: busyDeleting ? null : () => _changeStatus(
-                  item,
-                  nextStatus: 'draft',
-                  title: 'إرجاع الإشعار إلى مسودة؟',
-                  message: 'سيتوقف ظهوره كإشعار منشور داخل الإدارة. هذا لا يسحب إشعارًا سبق تجهيزه أو تسليمه للطلاب.',
-                  successMessage: 'تم إرجاع الإشعار إلى مسودة.',
-                ),
-                icon: const Icon(Icons.undo_outlined),
-                label: const Text('إرجاع لمسودة'),
-              ),
-            if (status == 'published')
+            if (status == 'published' || status == 'scheduled')
               FilledButton.tonalIcon(
                 onPressed: canSend && !busyDeleting ? () => _send(item) : null,
                 icon: busySending
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.send_outlined),
-                label: Text(_isScheduled(item) ? 'لم يحن موعد الإرسال' : 'إرسال / تحديث الاستهداف'),
+                label: Text(_isExpired(item)
+                    ? 'انتهت صلاحية الإشعار'
+                    : _isScheduled(item)
+                        ? 'سيُتاح الإرسال عند الموعد'
+                        : status == 'scheduled'
+                            ? 'تفعيل الموعد وإرسال الإشعار'
+                            : 'إرسال / تحديث الاستهداف'),
               ),
             OutlinedButton.icon(
               onPressed: busyDeleting ? null : () => _delete(item),
@@ -522,6 +533,29 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Widget _detail(IconData icon, String label) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [Icon(icon, size: 16), const SizedBox(width: 4), Text(label)],
+      );
+
+  String _formatDateTime(dynamic value) {
+    final date = _date(value);
+    if (date == null) return 'غير محدد';
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}  $hour:$minute';
+  }
+
+  Widget _dateDetail(IconData icon, String label, dynamic value) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 4),
+          Text('$label: '),
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text(_formatDateTime(value)),
+          ),
+        ],
       );
 }
 
@@ -543,7 +577,6 @@ class _AnnouncementEditorState extends State<_AnnouncementEditor> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _title;
   late final TextEditingController _body;
-  late final TextEditingController _type;
   late final TextEditingController _department;
   late final TextEditingController _semester;
   String? _selectedDepartment;
@@ -557,7 +590,6 @@ class _AnnouncementEditorState extends State<_AnnouncementEditor> {
     final item = widget.initial;
     _title = TextEditingController(text: item?['title']?.toString() ?? '');
     _body = TextEditingController(text: item?['body']?.toString() ?? '');
-    _type = TextEditingController(text: item?['type']?.toString() ?? 'general');
     _department = TextEditingController(text: item?['target_department_id']?.toString() ?? '');
     _semester = TextEditingController(text: item?['target_semester_id']?.toString() ?? '');
     _selectedDepartment = _optionValue(widget.departments, _department.text);
@@ -595,18 +627,19 @@ class _AnnouncementEditorState extends State<_AnnouncementEditor> {
   }
 
   String _dateInput(dynamic value) {
-    final date = value == null ? null : DateTime.tryParse(value.toString());
+    final date = value == null ? null : DateTime.tryParse(value.toString())?.toLocal();
     if (date == null) return '';
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day $hour:$minute';
   }
 
   @override
   void dispose() {
     _title.dispose();
     _body.dispose();
-    _type.dispose();
     _department.dispose();
     _semester.dispose();
     _publishAt.dispose();
@@ -614,26 +647,43 @@ class _AnnouncementEditorState extends State<_AnnouncementEditor> {
     super.dispose();
   }
 
-  Future<void> _pickDate(TextEditingController controller) async {
+  Future<void> _pickDateTime(TextEditingController controller) async {
     final current = DateTime.tryParse(controller.text) ?? DateTime.now();
-    final picked = await showDatePicker(
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: current,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       helpText: 'اختر التاريخ',
     );
-    if (picked == null || !mounted) return;
-    final month = picked.month.toString().padLeft(2, '0');
-    final day = picked.day.toString().padLeft(2, '0');
-    setState(() => controller.text = '${picked.year}-$month-$day');
+    if (pickedDate == null || !mounted) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+      helpText: 'اختر الساعة',
+    );
+    if (pickedTime == null || !mounted) return;
+    final selected = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+    final month = selected.month.toString().padLeft(2, '0');
+    final day = selected.day.toString().padLeft(2, '0');
+    final hour = selected.hour.toString().padLeft(2, '0');
+    final minute = selected.minute.toString().padLeft(2, '0');
+    setState(() => controller.text = '${selected.year}-$month-$day $hour:$minute');
   }
 
   String? _optionalIsoDate(String value) {
     if (value.trim().isEmpty) return null;
     final date = DateTime.tryParse(value.trim());
     if (date == null) return null;
-    return DateTime(date.year, date.month, date.day).toIso8601String();
+    return DateTime(date.year, date.month, date.day, date.hour, date.minute)
+        .toUtc()
+        .toIso8601String();
   }
 
   void _save() {
@@ -648,21 +698,32 @@ class _AnnouncementEditorState extends State<_AnnouncementEditor> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تاريخ الانتهاء غير صالح.')));
       return;
     }
-    if (publishAt != null && expiresAt != null && DateTime.parse(expiresAt).isBefore(DateTime.parse(publishAt))) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تاريخ الانتهاء يجب ألا يسبق تاريخ النشر.')));
+    if (publishAt != null && expiresAt != null && !DateTime.parse(expiresAt).isAfter(DateTime.parse(publishAt))) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تاريخ الانتهاء يجب أن يأتي بعد موعد النشر.')));
       return;
     }
 
+    final isLinkedAcademicContent = _academicNotificationContentTypes
+        .contains(widget.initial?['content_type']?.toString());
+    final isGeneratedAcademicDraft = widget.initial?['status'] == 'draft' && isLinkedAcademicContent;
     final result = <String, dynamic>{
       'title': _title.text.trim(),
       'body': _body.text.trim(),
-      'type': _type.text.trim().isEmpty ? 'general' : _type.text.trim(),
+      // Type is assigned automatically; a restricted academic audience defaults to academic.
+      'type': isLinkedAcademicContent
+          ? (widget.initial?['type']?.toString().trim().isNotEmpty == true
+              ? widget.initial!['type'].toString().trim()
+              : 'academic')
+          : (_department.text.trim().isNotEmpty || _semester.text.trim().isNotEmpty ? 'academic' : 'general'),
       'target_department_id': _department.text.trim().isEmpty ? null : _department.text.trim(),
       'target_semester_id': _semester.text.trim().isEmpty ? null : _semester.text.trim(),
       'publish_at': publishAt,
       'expires_at': expiresAt,
     };
-    if (widget.initial == null) result['status'] = 'draft';
+    // The database/API accept only draft/published. A future publish_at marks a
+    // published announcement as scheduled; draft is reserved for generated
+    // schedule/material notifications awaiting approval.
+    result['status'] = isGeneratedAcademicDraft ? 'draft' : 'published';
     Navigator.of(context).pop(result);
   }
 
@@ -691,11 +752,6 @@ class _AnnouncementEditorState extends State<_AnnouncementEditor> {
                   maxLines: 8,
                   decoration: const InputDecoration(labelText: 'نص الإشعار'),
                   validator: (value) => value == null || value.trim().isEmpty ? 'نص الإشعار مطلوب' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _type,
-                  decoration: const InputDecoration(labelText: 'النوع (مثال: عام، أكاديمي، جدول)'),
                 ),
                 const SizedBox(height: 12),
                 if (widget.departments.isNotEmpty)
@@ -743,23 +799,21 @@ class _AnnouncementEditorState extends State<_AnnouncementEditor> {
                 TextFormField(
                   controller: _publishAt,
                   readOnly: true,
-                  onTap: () => _pickDate(_publishAt),
-                  decoration: const InputDecoration(labelText: 'تاريخ النشر / الجدولة (اختياري)', suffixIcon: Icon(Icons.calendar_month_outlined)),
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.start,
+                  onTap: () => _pickDateTime(_publishAt),
+                  decoration: const InputDecoration(labelText: 'موعد النشر / الجدولة (اختياري)', suffixIcon: Icon(Icons.calendar_month_outlined)),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _expiresAt,
                   readOnly: true,
-                  onTap: () => _pickDate(_expiresAt),
-                  decoration: const InputDecoration(labelText: 'تاريخ انتهاء الصلاحية (اختياري)', suffixIcon: Icon(Icons.event_busy_outlined)),
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.start,
+                  onTap: () => _pickDateTime(_expiresAt),
+                  decoration: const InputDecoration(labelText: 'موعد انتهاء الصلاحية (اختياري)', suffixIcon: Icon(Icons.event_busy_outlined)),
                 ),
-                if (isCreate) ...[
-                  const SizedBox(height: 12),
-                  const Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text('سيُحفظ الإشعار كمسودة أولًا، ولن يُنشر أو يُجهّز للإرسال قبل اعتمادك له.'),
-                  ),
-                ] else if (widget.initial?['status'] == 'published') ...[
+                if (!isCreate && widget.initial?['status'] != 'scheduled') ...[
                   const SizedBox(height: 12),
                   const Align(
                     alignment: AlignmentDirectional.centerStart,

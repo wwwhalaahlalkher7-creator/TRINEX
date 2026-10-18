@@ -19,7 +19,7 @@ This document maps the legacy `Union-App/website/admin` capabilities to the nati
 | Google Drive sync | Academic workspace | `/admin/drive/sync`, `/admin/drive/sync-status` | Connected; action requires confirmation |
 | Comments / replies | Moderation | `/admin/moderation/comments`, `/admin/moderation/replies` | Status moderation and reply deletion present |
 | Student suggestions/general reports and public chat reports | Unified Suggestions & Reports inbox (chat is a dedicated record type) | `/admin/moderation/feedback`, `/admin/moderation/chat-reports` | One searchable/filterable page; each source retains its own status and actions, including chat message hide/keep |
-| Notifications | Notifications | `/admin/notifications`, `/admin/notifications/send`, `/admin/announcements/:id` | Create drafts, search/filter, edit, publish/unpublish, delete, schedule by date, review audience/read counts, and separately confirm target-list preparation |
+| Notifications | Notifications | `/admin/notifications`, `/admin/notifications/send`, `/admin/announcements/:id` | Create published or scheduled notifications, search/filter, edit, delete, display publish/expiry times, and separately confirm target-list preparation |
 | Media upload | Content editor and Media | `POST /admin/media` | Added upload from content editor; JPEG/PNG/WebP, 3 MB limit, server validates and returns URL |
 | Audit log and authentication events | Security | `/admin/audit-logs`, `/admin/security/auth-events` | Read-only; sensitive fields redacted in detail view |
 | Eino usage/monitoring | Eino monitor | `/admin/security/eino-monitor` | Added provider/task summaries, request statuses, latency, quota limits, recent telemetry and privacy notice |
@@ -28,14 +28,9 @@ This document maps the legacy `Union-App/website/admin` capabilities to the nati
 
 ## Notification workflow
 
-The backend source already creates or refreshes editable drafts for new schedule/material/achievement records and for meaningful changes to those records. The Flutter notification screen now supports:
+The backend source may create or refresh linked notification records when schedule/material/achievement data changes. The Flutter notification screen no longer creates ordinary notification drafts or exposes approve/unpublish controls. It creates a normal notification as published, or marks it scheduled when the publish time is in the future. Generated academic-workflow drafts retain their status when edited.
 
-1. Reviewing the generated draft.
-2. Editing its title/body/type and target department/semester.
-3. Explicitly approving/publishing it.
-4. Sending/updating its target list only as a separate action after publication.
-
-Publishing does not claim that push notifications were delivered; actual device delivery depends on the backend dispatch configuration.
+The admin ZIP does not include the Worker/backend source. The server must enforce `publish_at` and `expires_at`, suppress immediate Push for future-scheduled records, and dispatch them when due; the client alone cannot guarantee background scheduling while closed. Target-list preparation remains an explicit send action for already-published notifications.
 
 ## Security and source integrity
 
@@ -46,6 +41,6 @@ Publishing does not claim that push notifications were delivered; actual device 
 
 ## Verification limits
 
-Focused widget tests were added for content-section switching and creating a notification draft. This editing environment does not have Flutter/Dart installed, so those tests, `dart format`, `flutter analyze`, platform builds, and live API integration tests could not be executed here. The package must not be considered release-verified until those checks pass in CI and the changed flows are tested with authorized test accounts against the target API.
+Focused widget tests cover content-section switching, immediate notification publishing without a type selector, and readable scheduled date/time rendering. This editing environment does not have Flutter/Dart installed, so those tests, `dart format`, `flutter analyze`, platform builds, and live API integration tests could not be executed here. The package must not be considered release-verified until those checks pass in CI and the changed flows are tested with authorized test accounts against the target API.
 
 The source code's presence is not proof that production secrets, Cloudflare routes, D1 migrations, R2 media storage, or push delivery are configured. In particular, verify the deployed backend has migrations through `0038_content_notification_drafts.sql` and that `/admin/security/eino-monitor`, `/admin/moderation/feedback`, and `/admin/moderation/chat-reports` are deployed before relying on those screens in production.
