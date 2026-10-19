@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image/image.dart' as img;
 
 import '../../api_service.dart';
 import '../../admin_permissions.dart';
@@ -372,6 +374,7 @@ class _ContentEditorState extends State<_ContentEditor> {
   bool _busy = false;
   bool _uploadingImage = false;
   String? _imageError;
+  final List<String> _achievementImages = <String>[];
 
   DateTime? _readDate(String value) {
     final raw = value.trim();
@@ -389,24 +392,53 @@ class _ContentEditorState extends State<_ContentEditor> {
     if (picked != null) { controller.text = '${picked.day.toString().padLeft(2,'0')}/${picked.month.toString().padLeft(2,'0')}/${picked.year}'; }
   }
 
+  Future<Uint8List> _compressImage(Uint8List input) async {
+    final decoded = img.decodeImage(input);
+    if (decoded == null) throw const ApiServiceException('تعذر قراءة الصورة المختارة.');
+    var image = decoded;
+    const maxDimension = 2400;
+    if (image.width > maxDimension || image.height > maxDimension) {
+      image = img.copyResize(image, width: image.width >= image.height ? maxDimension : null,
+          height: image.height > image.width ? maxDimension : null, interpolation: img.Interpolation.average);
+    }
+    // JPEG quality is reduced gradually only if needed; 90+ is visually high quality.
+    for (final quality in <int>[92, 89, 86, 82, 78]) {
+      final output = Uint8List.fromList(img.encodeJpg(image, quality: quality));
+      if (output.length <= 2 * 1024 * 1024) return output;
+    }
+    final output = Uint8List.fromList(img.encodeJpg(image, quality: 75));
+    if (output.length > 3 * 1024 * 1024) throw const ApiServiceException('تعذر ضغط الصورة إلى الحجم المسموح.');
+    return output;
+  }
+
   Future<void> _pickAndUploadImage() async {
-    final picked = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
-    if (picked == null || picked.files.isEmpty || !mounted) { return; }
-    final file = picked.files.single;
-    final bytes = file.bytes;
-    if (bytes == null || bytes.isEmpty) { setState(() => _imageError = 'تعذر قراءة الصورة من الجهاز.'); return; }
-    if (bytes.length > 3 * 1024 * 1024) { setState(() => _imageError = 'الحد الأقصى للصورة 3 ميغابايت.'); return; }
-    final ext = (file.extension ?? '').toLowerCase();
-    final type = switch (ext) { 'jpg' || 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', _ => '' };
-    if (type.isEmpty) { setState(() => _imageError = 'نوع الصورة غير مدعوم.'); return; }
+    final isAchievement = widget.kind == _ContentKind.achievements;
+    final remaining = isAchievement ? 10 - _achievementImages.length : 1;
+    if (remaining <= 0) { setState(() => _imageError = 'يمكن إضافة 10 صور كحد أقصى للإنجاز.'); return; }
+    final picked = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: isAchievement, withData: true);
+    if (picked == null || picked.files.isEmpty || !mounted) return;
+    final files = picked.files.take(remaining).toList();
     setState(() { _uploadingImage = true; _imageError = null; });
     try {
-      final uploaded = await widget.api.uploadImage(bytes: bytes, filename: file.name, contentType: type);
-      final url = uploaded['url']?.toString() ?? '';
-      if (url.isEmpty) { throw const ApiServiceException('لم يُرجع الخادم رابط الصورة.'); }
-      if (mounted) { setState(() => _imageUrl.text = url); }
-    } catch (e) { if (mounted) { setState(() => _imageError = e.toString()); } }
-    finally { if (mounted) { setState(() => _uploadingImage = false); } }
+      final urls = <String>[];
+      for (final file in files) {
+        final bytes = file.bytes;
+        if (bytes == null || bytes.isEmpty) throw ApiServiceException('تعذر قراءة الصورة ${file.name}.');
+        final compressed = await _compressImage(bytes);
+        final uploaded = await widget.api.uploadImage(bytes: compressed,
+            filename: '${file.name.replaceAll(RegExp(r'\.[^.]+$'), '')}.jpg', contentType: 'image/jpeg');
+        final url = uploaded['url']?.toString() ?? '';
+        if (url.isEmpty) throw const ApiServiceException('لم يُرجع الخادم رابط الصورة.');
+        urls.add(url);
+      }
+      if (mounted) setState(() {
+        if (isAchievement) {
+          _achievementImages.addAll(urls);
+          _imageUrl.text = _achievementImages.isEmpty ? '' : _achievementImages.first;
+        } else if (urls.isNotEmpty) { _imageUrl.text = urls.first; }
+      });
+    } catch (e) { if (mounted) setState(() => _imageError = e.toString()); }
+    finally { if (mounted) setState(() => _uploadingImage = false); }
   }
 
   @override
@@ -415,6 +447,10 @@ class _ContentEditorState extends State<_ContentEditor> {
     final item = widget.initial ?? {};
     _title = TextEditingController(text: item['title']?.toString() ?? '');
     _imageUrl = TextEditingController(text: item['image_url']?.toString() ?? '');
+    final rawImages = item['images_json'] ?? item['images'];
+    if (rawImages is List) { _achievementImages.addAll(rawImages.map((v) => v is Map ? '${v['url'] ?? ''}' : '$v').where((v) => v.trim().isNotEmpty).take(10)); }
+    else if (rawImages is String && rawImages.trim().isNotEmpty) { try { final parsed = jsonDecode(rawImages); if (parsed is List) _achievementImages.addAll(parsed.map((v) => v is Map ? '${v['url'] ?? ''}' : '$v').where((v) => v.trim().isNotEmpty).take(10)); } catch (_) {} }
+    if (_achievementImages.isEmpty && _imageUrl.text.trim().isNotEmpty && widget.kind == _ContentKind.achievements) _achievementImages.add(_imageUrl.text.trim());
     _body = TextEditingController(text: (item['body'] ?? item['description'] ?? item['intro'] ?? '').toString());
     final savedCategory = (widget.kind == _ContentKind.achievements
         ? item['badge']
@@ -483,7 +519,7 @@ class _ContentEditorState extends State<_ContentEditor> {
         payload.addAll({'body': body, 'category': _category.text.trim(), 'publisher': _publisher.text.trim(), 'image_url': _imageUrl.text.trim(), 'location': _location.text.trim(), 'event_at': _isoDate(_eventAt.text), 'end_at': _isoDate(_endAt.text)});
         break;
       case _ContentKind.achievements:
-        payload.addAll({'description': body, 'intro': body, 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _imageUrl.text.trim(), 'achieved_at': _isoDate(_achievedAt.text)});
+        payload.addAll({'description': body, 'intro': body, 'publisher': _publisher.text.trim(), 'badge': _category.text.trim(), 'image_url': _achievementImages.isNotEmpty ? _achievementImages.first : _imageUrl.text.trim(), 'images_json': jsonEncode(_achievementImages.take(10).toList()), 'achieved_at': _isoDate(_achievedAt.text)});
         break;
       case _ContentKind.announcements:
         payload.addAll({'body': body, 'type': _type.text.trim().isEmpty ? 'general' : _type.text.trim(), 'target_department_id': _targetDepartment.text.trim().isEmpty ? null : _targetDepartment.text.trim(), 'target_semester_id': _targetSemester.text.trim().isEmpty ? null : _targetSemester.text.trim(), 'publish_at': _publishAt.text.trim().isEmpty ? null : _publishAt.text.trim(), 'expires_at': _expiresAt.text.trim().isEmpty ? null : _expiresAt.text.trim()});
@@ -542,8 +578,12 @@ class _ContentEditorState extends State<_ContentEditor> {
         const Divider(height: 28),
         Align(alignment: AlignmentDirectional.centerStart, child: Text('الصورة', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700))),
         const SizedBox(height: 8),
-        if (_imageUrl.text.trim().isNotEmpty) ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_imageUrl.text, height: 150, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox(height: 70, child: Center(child: Text('تعذر عرض معاينة الصورة'))))),
-        Align(alignment: AlignmentDirectional.centerStart, child: OutlinedButton.icon(onPressed: _uploadingImage ? null : _pickAndUploadImage, icon: _uploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_library_outlined), label: Text(_uploadingImage ? 'جارٍ رفع الصورة…' : 'اختيار صورة من المعرض'))),
+        if (widget.kind == _ContentKind.achievements && _achievementImages.isNotEmpty)
+          Wrap(spacing: 8, runSpacing: 8, children: [for (var i = 0; i < _achievementImages.length; i++)
+            Stack(children: [ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(_achievementImages[i], height: 86, width: 86, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(height: 86, width: 86, color: Theme.of(context).colorScheme.surfaceContainerHighest, child: const Icon(Icons.broken_image_outlined))),),
+              PositionedDirectional(top: 2, end: 2, child: IconButton.filledTonal(visualDensity: VisualDensity.compact, constraints: const BoxConstraints.tightFor(width: 28, height: 28), padding: EdgeInsets.zero, onPressed: _uploadingImage ? null : () => setState(() { _achievementImages.removeAt(i); _imageUrl.text = _achievementImages.isEmpty ? '' : _achievementImages.first; }), icon: const Icon(Icons.close, size: 16)))])]),
+        if (widget.kind != _ContentKind.achievements && _imageUrl.text.trim().isNotEmpty) ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_imageUrl.text, height: 150, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox(height: 70, child: Center(child: Text('تعذر عرض معاينة الصورة'))))),
+        Align(alignment: AlignmentDirectional.centerStart, child: OutlinedButton.icon(onPressed: _uploadingImage || (widget.kind == _ContentKind.achievements && _achievementImages.length >= 10) ? null : _pickAndUploadImage, icon: _uploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_library_outlined), label: Text(_uploadingImage ? 'جارٍ ضغط ورفع الصور…' : widget.kind == _ContentKind.achievements ? 'إضافة صور (${_achievementImages.length}/10)' : 'اختيار صورة من المعرض'))),
         if (_imageError != null) Align(alignment: AlignmentDirectional.centerStart, child: Text(_imageError!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
       ],
     ])))),
